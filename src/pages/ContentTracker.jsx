@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   Play, Plus, Video, Calendar, CheckCircle2, 
   Edit2, Trash2, Camera, Filter, X, Target, Clock,
-  Lightbulb, FileText, Scissors, Eye, ThumbsUp, Rocket
+  Lightbulb, FileText, Scissors, Eye, ThumbsUp, Rocket, ExternalLink, PenTool, Image as ImageIcon, Music, Layout
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useVideos, useSettings, useIdeas, useScripts } from "../store/useStore";
@@ -15,6 +15,14 @@ const PIPELINE_STAGES = [
   { key: 'review', label: 'Review', Icon: Eye },
   { key: 'ready', label: 'Ready', Icon: ThumbsUp },
   { key: 'published', label: 'Published', Icon: Rocket }
+];
+
+const EDITING_RESOURCES = [
+  { name: 'Pinterest', icon: Layout, url: 'https://pinterest.com', color: 'bg-red-500' },
+  { name: 'Pexels B-Roll', icon: Video, url: 'https://pexels.com/videos', color: 'bg-teal-500' },
+  { name: 'Unsplash Images', icon: ImageIcon, url: 'https://unsplash.com', color: 'bg-gray-800' },
+  { name: 'Epidemic Sound', icon: Music, url: 'https://epidemicsound.com', color: 'bg-indigo-500' },
+  { name: 'CapCut Templates', icon: Scissors, url: 'https://capcut.com', color: 'bg-black' }
 ];
 
 export default function ContentTracker() {
@@ -31,6 +39,9 @@ export default function ContentTracker() {
   
   // Track which nodes are currently animating their 3D pop
   const [animatingNodes, setAnimatingNodes] = useState({});
+
+  // Workspace Modal State
+  const [activeWorkspace, setActiveWorkspace] = useState(null); // { videoId, stageIndex }
 
   const [formData, setFormData] = useState({
     title: '',
@@ -53,16 +64,38 @@ export default function ContentTracker() {
     return Math.round((completed / total) * 100);
   };
 
-  const handleToggleStage = (videoId, stageKey, isCurrentlyCompleted) => {
-    updateStage(videoId, stageKey, !isCurrentlyCompleted);
-    if (!isCurrentlyCompleted) {
+  const handleNodeClick = (video, index) => {
+    // Enforce sequential progression: Can only click if previous stage is completed
+    if (index > 0) {
+      const prevStageKey = PIPELINE_STAGES[index - 1].key;
+      if (!video.stages[prevStageKey]) {
+        // Shake animation could go here, or just simple alert for now
+        alert(`Please complete the `${PIPELINE_STAGES[index - 1].label}` stage first!`);
+        return;
+      }
+    }
+    setActiveWorkspace({ videoId: video.id, stageIndex: index });
+  };
+
+  const handleToggleComplete = () => {
+    if (!activeWorkspace) return;
+    const video = videos.find(v => v.id === activeWorkspace.videoId);
+    const stage = PIPELINE_STAGES[activeWorkspace.stageIndex];
+    const isCompleted = video.stages[stage.key];
+    
+    updateStage(video.id, stage.key, !isCompleted);
+    
+    if (!isCompleted) {
       // Trigger the 3D pop animation
-      const animKey = `${videoId}-\${stageKey}`;
+      const animKey = `\${video.id}-\${stage.key}`;
       setAnimatingNodes(prev => ({ ...prev, [animKey]: true }));
       setTimeout(() => {
         setAnimatingNodes(prev => ({ ...prev, [animKey]: false }));
       }, 500); // matches the 0.5s CSS animation
     }
+    
+    // Auto-close workspace after marking complete
+    setActiveWorkspace(null);
   };
 
   const handleEdit = (video) => {
@@ -124,6 +157,109 @@ export default function ContentTracker() {
     return video.platforms?.some(p => p.platformId === platformId);
   };
 
+  // --- RENDER WORKSPACE MODAL CONTENT ---
+  const renderWorkspaceContent = (video, stage) => {
+    const workspace = video.workspace || {};
+    
+    switch (stage.key) {
+      case 'idea':
+        return (
+          <div className="space-y-4">
+            <label className="block font-bold text-gray-700 dark:text-gray-300">Brainstorming Notepad</label>
+            <textarea 
+              className="w-full h-64 p-6 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-none focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-medium text-lg leading-relaxed shadow-inner"
+              placeholder="Dump all your ideas, references, and thoughts here..."
+              value={video.notes || ''}
+              onChange={(e) => updateVideo(video.id, { notes: e.target.value })}
+            />
+          </div>
+        );
+      case 'script':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <label className="flex items-center gap-2 font-bold text-red-600"><Play size={18}/> YouTube Script</label>
+              <textarea 
+                className="w-full h-72 p-6 rounded-2xl bg-red-50/50 dark:bg-red-900/10 border-2 border-red-100 dark:border-red-900/30 focus:border-red-400 outline-none resize-none font-medium shadow-inner"
+                placeholder="Hook, Intro, Main Points, CTA..."
+                value={workspace.scriptYT || ''}
+                onChange={(e) => updateVideo(video.id, { workspace: { ...workspace, scriptYT: e.target.value } })}
+              />
+            </div>
+            <div className="space-y-4">
+              <label className="flex items-center gap-2 font-bold text-pink-600"><Camera size={18}/> Instagram/Short Script</label>
+              <textarea 
+                className="w-full h-72 p-6 rounded-2xl bg-pink-50/50 dark:bg-pink-900/10 border-2 border-pink-100 dark:border-pink-900/30 focus:border-pink-400 outline-none resize-none font-medium shadow-inner"
+                placeholder="Fast hook, quick value, loop..."
+                value={workspace.scriptIG || ''}
+                onChange={(e) => updateVideo(video.id, { workspace: { ...workspace, scriptIG: e.target.value } })}
+              />
+            </div>
+          </div>
+        );
+      case 'recording':
+        return (
+          <div className="space-y-6">
+            <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800">
+              <h3 className="font-bold text-indigo-800 dark:text-indigo-300 mb-4 text-lg">Pre-flight Checklist</h3>
+              <div className="space-y-3">
+                {['Clean Camera Lens', 'Check Lighting & Shadows', 'Microphone ON & Levels Good', 'Water/Coffee Ready', 'B-Roll Shot List Reviewed'].map((item, i) => (
+                  <label key={i} className="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" className="w-5 h-5 rounded text-indigo-500 bg-white border-indigo-300 focus:ring-indigo-500" />
+                    <span className="font-medium text-indigo-900 dark:text-indigo-200 group-hover:opacity-70 transition-opacity">{item}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      case 'editing':
+        return (
+          <div className="space-y-8">
+            <div>
+              <h3 className="font-bold text-gray-800 dark:text-gray-200 mb-4">Editing Resources & Assets</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {EDITING_RESOURCES.map((res, i) => {
+                  const ResIcon = res.icon;
+                  return (
+                    <a 
+                      key={i} 
+                      href={res.url} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className={`\${res.color} text-white p-4 rounded-2xl flex flex-col justify-center items-center gap-3 hover:-translate-y-1 hover:shadow-lg transition-all`}
+                    >
+                      <ResIcon size={32} />
+                      <span className="font-bold text-sm text-center">{res.name}</span>
+                    </a>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <label className="block font-bold text-gray-700 dark:text-gray-300 mb-2">Editor Notes</label>
+              <textarea 
+                className="w-full h-32 p-4 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border-none outline-none resize-none font-medium shadow-inner"
+                placeholder="Cuts, effects, timestamps for B-roll..."
+                value={workspace.editingNotes || ''}
+                onChange={(e) => updateVideo(video.id, { workspace: { ...workspace, editingNotes: e.target.value } })}
+              />
+            </div>
+          </div>
+        );
+      default:
+        return (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
+              <stage.Icon size={40} className="text-gray-400" />
+            </div>
+            <h3 className="text-2xl font-bold mb-2">Ready to complete {stage.label}?</h3>
+            <p className="text-gray-500 max-w-sm">Review your work and mark this stage as complete to move forward in the pipeline.</p>
+          </div>
+        );
+    }
+  };
+
   return (
     <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-fade-in pb-24">
       {/* Header */}
@@ -132,7 +268,7 @@ export default function ContentTracker() {
           <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-pink-500">
             Content Engine
           </h1>
-          <p className="text-gray-500 mt-2 font-medium">Track your video production with 3D progress</p>
+          <p className="text-gray-500 mt-2 font-medium">Sequential 3D Pipeline & Integrated Workspaces</p>
         </div>
         <button 
           onClick={() => {
@@ -175,7 +311,7 @@ export default function ContentTracker() {
           <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
             <div 
               className="h-full bg-gradient-to-r from-pink-500 to-rose-500 transition-all duration-1000"
-              style={{ width: `${Math.min((publishedVideos / (contentGoals?.weekly || 3)) * 100, 100)}%` }}
+              style={{ width: `\${Math.min((publishedVideos / (contentGoals?.weekly || 3)) * 100, 100)}%` }}
             />
           </div>
         </div>
@@ -235,7 +371,7 @@ export default function ContentTracker() {
                 {/* Dynamic Background Gradient based on progress */}
                 <div 
                   className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none transition-all duration-1000"
-                  style={{ background: `linear-gradient(90deg, #6366f1 0%, transparent ${progress}%)` }}
+                  style={{ background: `linear-gradient(90deg, #6366f1 0%, transparent \${progress}%)` }}
                 />
 
                 {/* Top Row */}
@@ -244,7 +380,7 @@ export default function ContentTracker() {
                     <div className="flex flex-wrap items-center gap-3 mb-3">
                       <h3 className="text-2xl font-black text-gray-900 dark:text-white line-clamp-1">{video.title}</h3>
                       {category && (
-                        <span className="px-4 py-1.5 rounded-xl text-xs font-black tracking-widest uppercase shadow-sm" style={{ backgroundColor: category.color + '22', color: category.color, border: `1px solid ${category.color}44` }}>
+                        <span className="px-4 py-1.5 rounded-xl text-xs font-black tracking-widest uppercase shadow-sm" style={{ backgroundColor: category.color + '22', color: category.color, border: `1px solid \${category.color}44` }}>
                           {category.name}
                         </span>
                       )}
@@ -276,33 +412,37 @@ export default function ContentTracker() {
                 {/* Pipeline Nodes (The visually rich 3D progress bar) */}
                 <div className="pipeline-track-container mb-10 relative z-10 hidden sm:block">
                   <div className="pipeline-bg-track"></div>
-                  <div className="pipeline-fill-track" style={{ width: `calc(${progress}% - 2rem)` }}></div>
+                  <div className="pipeline-fill-track" style={{ width: `calc(\${progress}% - 2rem)` }}></div>
                   
                   <div className="flex justify-between relative px-8">
-                    {PIPELINE_STAGES.map((stage) => {
+                    {PIPELINE_STAGES.map((stage, idx) => {
                       const isCompleted = video.stages[stage.key];
-                      const isAnimating = animatingNodes[`${video.id}-\${stage.key}`];
+                      const isAnimating = animatingNodes[`\${video.id}-\${stage.key}`];
+                      // Locked if not first stage AND previous stage is NOT completed
+                      const isLocked = idx > 0 && !video.stages[PIPELINE_STAGES[idx - 1].key];
                       
                       const IconComp = stage.Icon;
 
                       return (
                         <div 
                           key={stage.key}
-                          onClick={() => handleToggleStage(video.id, stage.key, isCompleted)}
-                          className="flex flex-col items-center gap-3 cursor-pointer group/stage relative"
+                          onClick={() => !isLocked && handleNodeClick(video, idx)}
+                          className={`flex flex-col items-center gap-3 ${isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer group/stage hover:-translate-y-1 transition-transform'} relative`}
+                          title={isLocked ? `Complete ${PIPELINE_STAGES[idx - 1].label} first!` : `Open ${stage.label} Workspace`}
                         >
                           {/* The 3D Node */}
                           <div className={`
                             w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 z-10
-                            \${isCompleted 
+                            ${isCompleted 
                               ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-[0_8px_15px_rgba(99,102,241,0.4)] scale-110 border-2 border-white/20' 
-                              : 'bg-white dark:bg-gray-800 text-gray-400 shadow-md border border-gray-200 dark:border-gray-700 group-hover/stage:shadow-lg group-hover/stage:scale-110'}
-                            \${isAnimating ? 'animate-pop3d' : ''}
+                              : 'bg-white dark:bg-gray-800 text-gray-400 shadow-md border border-gray-200 dark:border-gray-700'}
+                            ${(!isLocked && !isCompleted) ? 'group-hover/stage:shadow-lg group-hover/stage:border-indigo-400 group-hover/stage:text-indigo-500' : ''}
+                            ${isAnimating ? 'animate-pop3d' : ''}
                           `}>
-                            <IconComp size={20} strokeWidth={isCompleted ? 2.5 : 2} className={isCompleted ? '' : 'group-hover/stage:text-indigo-400'} />
+                            <IconComp size={20} strokeWidth={isCompleted ? 2.5 : 2} />
                           </div>
                           
-                          <span className={`text-xs font-black tracking-wide uppercase transition-colors \${isCompleted ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover/stage:text-gray-600 dark:group-hover/stage:text-gray-300'}`}>
+                          <span className={`text-xs font-black tracking-wide uppercase transition-colors ${isCompleted ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'} ${(!isLocked && !isCompleted) ? 'group-hover/stage:text-indigo-500' : ''}\`}>
                             {stage.label}
                           </span>
                         </div>
@@ -313,16 +453,18 @@ export default function ContentTracker() {
 
                 {/* Mobile Fallback for Pipeline (Simplified for small screens) */}
                 <div className="sm:hidden mb-8 grid grid-cols-4 gap-4">
-                   {PIPELINE_STAGES.map((stage) => {
+                   {PIPELINE_STAGES.map((stage, idx) => {
                       const isCompleted = video.stages[stage.key];
+                      const isLocked = idx > 0 && !video.stages[PIPELINE_STAGES[idx - 1].key];
                       const IconComp = stage.Icon;
                       return (
                          <div 
                           key={stage.key}
-                          onClick={() => handleToggleStage(video.id, stage.key, isCompleted)}
+                          onClick={() => !isLocked && handleNodeClick(video, idx)}
                           className={`
                             flex flex-col items-center justify-center p-3 rounded-2xl gap-2 shadow-sm border transition-all
-                            \${isCompleted ? 'bg-indigo-500 border-indigo-600 text-white shadow-indigo-500/30' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400'}
+                            ${isCompleted ? 'bg-indigo-500 border-indigo-600 text-white shadow-indigo-500/30' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400'}
+                            ${isLocked ? 'opacity-50' : 'active:scale-95'}
                           `}
                          >
                            <IconComp size={18} />
@@ -340,7 +482,7 @@ export default function ContentTracker() {
                       <span className="text-sm font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md">{progress}%</span>
                     </div>
                     <div className="h-3 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
-                      <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${progress}%` }} />
+                      <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `\${progress}%` }} />
                     </div>
                   </div>
 
@@ -348,7 +490,7 @@ export default function ContentTracker() {
                     {hasPlatform(video, 'youtube') && (
                       <button 
                         onClick={() => togglePlatform(video.id, 'youtube', getPlatformStatus(video, 'youtube'))}
-                        className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black transition-all border shadow-sm \${getPlatformStatus(video, 'youtube') ? 'bg-red-50 dark:bg-red-900/20 text-red-600 border-red-200 dark:border-red-800' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 hover:border-red-300 hover:text-red-500'}`}
+                        className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black transition-all border shadow-sm ${getPlatformStatus(video, 'youtube') ? 'bg-red-50 dark:bg-red-900/20 text-red-600 border-red-200 dark:border-red-800' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 hover:border-red-300 hover:text-red-500'}`}
                       >
                         <Play size={20} className={getPlatformStatus(video, 'youtube') ? 'fill-current' : ''} /> 
                         <span className="hidden sm:inline">YouTube</span>
@@ -357,7 +499,7 @@ export default function ContentTracker() {
                     {hasPlatform(video, 'instagram') && (
                       <button 
                         onClick={() => togglePlatform(video.id, 'instagram', getPlatformStatus(video, 'instagram'))}
-                        className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black transition-all border shadow-sm \${getPlatformStatus(video, 'instagram') ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 border-pink-200 dark:border-pink-800' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 hover:border-pink-300 hover:text-pink-500'}`}
+                        className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black transition-all border shadow-sm ${getPlatformStatus(video, 'instagram') ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 border-pink-200 dark:border-pink-800' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 hover:border-pink-300 hover:text-pink-500'}`}
                       >
                         <Camera size={20} className={getPlatformStatus(video, 'instagram') ? 'fill-current' : ''} />
                         <span className="hidden sm:inline">Instagram</span>
@@ -372,7 +514,55 @@ export default function ContentTracker() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* STAGE WORKSPACE MODAL */}
+      {activeWorkspace && (() => {
+        const video = videos.find(v => v.id === activeWorkspace.videoId);
+        if (!video) return null;
+        const stage = PIPELINE_STAGES[activeWorkspace.stageIndex];
+        const isCompleted = video.stages[stage.key];
+        const StageIcon = stage.Icon;
+
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md animate-fade-in">
+            <div className="bg-white dark:bg-[#121212] rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col">
+              
+              {/* Header */}
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-8 flex justify-between items-center text-white shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                    <StageIcon size={32} />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-black">{stage.label} Workspace</h2>
+                    <p className="font-medium text-indigo-100">{video.title}</p>
+                  </div>
+                </div>
+                <button onClick={() => setActiveWorkspace(null)} className="p-2 rounded-full hover:bg-white/20 transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              {/* Dynamic Content */}
+              <div className="p-8 overflow-y-auto flex-1 bg-white dark:bg-[#121212]">
+                {renderWorkspaceContent(video, stage)}
+              </div>
+
+              {/* Footer / Completion Button */}
+              <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-[#151515] shrink-0">
+                <button 
+                  onClick={handleToggleComplete}
+                  className={`w-full py-5 rounded-2xl font-black text-xl transition-all hover:-translate-y-1 flex items-center justify-center gap-3 ${isCompleted ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 border-2 border-emerald-500' : 'bg-black dark:bg-white text-white dark:text-black hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] dark:hover:shadow-[0_10px_20px_rgba(255,255,255,0.2)]'}`}
+                >
+                  <CheckCircle2 size={28} className={isCompleted ? 'fill-current text-white' : ''} /> 
+                  {isCompleted ? `${stage.label} Completed (Click to Re-open)` : `Mark ${stage.label} as Complete`}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* CREATE/EDIT MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-[#151515] rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-gray-800">
@@ -435,7 +625,7 @@ export default function ContentTracker() {
               <div>
                 <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Platforms</label>
                 <div className="flex gap-4">
-                  <label className={`flex items-center gap-3 p-5 rounded-2xl cursor-pointer flex-1 transition-all border-2 \${formData.platforms.includes('youtube') ? 'bg-red-50 dark:bg-red-900/20 border-red-500' : 'bg-gray-50 dark:bg-[#1a1a1a] border-transparent hover:border-gray-300 dark:hover:border-gray-600'}`}>
+                  <label className={`flex items-center gap-3 p-5 rounded-2xl cursor-pointer flex-1 transition-all border-2 ${formData.platforms.includes('youtube') ? 'bg-red-50 dark:bg-red-900/20 border-red-500' : 'bg-gray-50 dark:bg-[#1a1a1a] border-transparent hover:border-gray-300 dark:hover:border-gray-600'}`}>
                     <input 
                       type="checkbox" 
                       className="hidden"
@@ -448,9 +638,9 @@ export default function ContentTracker() {
                       }}
                     />
                     <Play size={24} className={formData.platforms.includes('youtube') ? "text-red-500 fill-current" : "text-gray-400"} /> 
-                    <span className={`font-bold text-lg \${formData.platforms.includes('youtube') ? 'text-red-600 dark:text-red-400' : 'text-gray-500'}`}>YouTube</span>
+                    <span className={`font-bold text-lg ${formData.platforms.includes('youtube') ? 'text-red-600 dark:text-red-400' : 'text-gray-500'}`}>YouTube</span>
                   </label>
-                  <label className={`flex items-center gap-3 p-5 rounded-2xl cursor-pointer flex-1 transition-all border-2 \${formData.platforms.includes('instagram') ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-500' : 'bg-gray-50 dark:bg-[#1a1a1a] border-transparent hover:border-gray-300 dark:hover:border-gray-600'}`}>
+                  <label className={`flex items-center gap-3 p-5 rounded-2xl cursor-pointer flex-1 transition-all border-2 ${formData.platforms.includes('instagram') ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-500' : 'bg-gray-50 dark:bg-[#1a1a1a] border-transparent hover:border-gray-300 dark:hover:border-gray-600'}`}>
                     <input 
                       type="checkbox" 
                       className="hidden"
@@ -463,7 +653,7 @@ export default function ContentTracker() {
                       }}
                     />
                     <Camera size={24} className={formData.platforms.includes('instagram') ? "text-pink-600 fill-current" : "text-gray-400"} /> 
-                    <span className={`font-bold text-lg \${formData.platforms.includes('instagram') ? 'text-pink-600 dark:text-pink-400' : 'text-gray-500'}`}>Instagram</span>
+                    <span className={`font-bold text-lg ${formData.platforms.includes('instagram') ? 'text-pink-600 dark:text-pink-400' : 'text-gray-500'}`}>Instagram</span>
                   </label>
                 </div>
               </div>
@@ -517,6 +707,7 @@ export default function ContentTracker() {
         </div>
       )}
 
+      {/* DELETE CONFIRM */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-[#151515] rounded-[2rem] w-full max-w-sm p-8 shadow-2xl text-center border border-gray-200 dark:border-gray-800">
@@ -548,7 +739,4 @@ export default function ContentTracker() {
     </div>
   );
 }
-
-
-
 
