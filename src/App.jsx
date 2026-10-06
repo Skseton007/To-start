@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { StoreProvider } from './store/useStore';
 import { ToastProvider } from './components/Toast';
 import Layout from './components/Layout';
@@ -21,7 +21,7 @@ function App() {
   return (
     <StoreProvider>
       <ToastProvider>
-        <BrowserRouter>
+        <HashRouter>
           <Routes>
             <Route path="/" element={<Layout />}>
               <Route index element={<Dashboard />} />
@@ -38,7 +38,7 @@ function App() {
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>
-        </BrowserRouter>
+        </HashRouter>
       </ToastProvider>
     </StoreProvider>
   );
