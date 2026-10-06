@@ -161,7 +161,7 @@ export default function ContentTracker() {
           <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
             <div 
               className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-1000"
-              style={{ width: \`\${Math.min((publishedVideos / (contentGoals?.weekly || 3)) * 100, 100)}%\` }}
+              style={{ width: `${Math.min((publishedVideos / (contentGoals?.weekly || 3)) * 100, 100)}%` }}
             />
           </div>
         </div>
@@ -265,10 +265,10 @@ export default function ContentTracker() {
                           onClick={() => updateStage(video.id, stage.key, !isCompleted)}
                           className="flex flex-col items-center gap-2 cursor-pointer group/stage"
                         >
-                          <div className={\`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 \${isCompleted ? 'bg-indigo-500 text-white scale-110 shadow-md shadow-indigo-500/20' : 'bg-gray-200 dark:bg-gray-700 text-transparent group-hover/stage:bg-gray-300 dark:group-hover/stage:bg-gray-600'}\`}>
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300 \${isCompleted ? 'bg-indigo-500 text-white scale-110 shadow-md shadow-indigo-500/20' : 'bg-gray-200 dark:bg-gray-700 text-transparent group-hover/stage:bg-gray-300 dark:group-hover/stage:bg-gray-600'}`}>
                             {isCompleted && <CheckCircle2 size={14} strokeWidth={3} />}
                           </div>
-                          <span className={\`text-xs font-semibold \${isCompleted ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}\`}>
+                          <span className={`text-xs font-semibold \${isCompleted ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'}`}>
                             {stage.label}
                           </span>
                         </div>
@@ -285,7 +285,7 @@ export default function ContentTracker() {
                       <span className="text-xs font-bold text-indigo-500">{progress}%</span>
                     </div>
                     <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: \`\${progress}%\` }} />
+                      <div className="h-full bg-indigo-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
 
@@ -293,7 +293,7 @@ export default function ContentTracker() {
                     {hasPlatform(video, 'youtube') && (
                       <button 
                         onClick={() => togglePlatform(video.id, 'youtube', getPlatformStatus(video, 'youtube'))}
-                        className={\`flex items-center gap-1.5 text-sm font-semibold transition-colors \${getPlatformStatus(video, 'youtube') ? 'text-red-500' : 'text-gray-400 hover:text-red-400'}\`}
+                        className={`flex items-center gap-1.5 text-sm font-semibold transition-colors \${getPlatformStatus(video, 'youtube') ? 'text-red-500' : 'text-gray-400 hover:text-red-400'}`}
                       >
                         <Play size={18} className={getPlatformStatus(video, 'youtube') ? 'fill-current' : ''} />
                       </button>
@@ -301,7 +301,7 @@ export default function ContentTracker() {
                     {hasPlatform(video, 'instagram') && (
                       <button 
                         onClick={() => togglePlatform(video.id, 'instagram', getPlatformStatus(video, 'instagram'))}
-                        className={\`flex items-center gap-1.5 text-sm font-semibold transition-colors \${getPlatformStatus(video, 'instagram') ? 'text-pink-600' : 'text-gray-400 hover:text-pink-500'}\`}
+                        className={`flex items-center gap-1.5 text-sm font-semibold transition-colors \${getPlatformStatus(video, 'instagram') ? 'text-pink-600' : 'text-gray-400 hover:text-pink-500'}`}
                       >
                         <Camera size={18} className={getPlatformStatus(video, 'instagram') ? 'fill-current' : ''} />
                       </button>
@@ -489,3 +489,4 @@ export default function ContentTracker() {
     </div>
   );
 }
+
