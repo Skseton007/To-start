@@ -87,7 +87,7 @@ export default function ContentTracker() {
     
     if (!isCompleted) {
       // Trigger the 3D pop animation
-      const animKey = `\${video.id}-\${stage.key}`;
+      const animKey = `${video.id}-${stage.key}`;
       setAnimatingNodes(prev => ({ ...prev, [animKey]: true }));
       setTimeout(() => {
         setAnimatingNodes(prev => ({ ...prev, [animKey]: false }));
@@ -227,7 +227,7 @@ export default function ContentTracker() {
                       href={res.url} 
                       target="_blank" 
                       rel="noreferrer"
-                      className={`\${res.color} text-white p-4 rounded-2xl flex flex-col justify-center items-center gap-3 hover:-translate-y-1 hover:shadow-lg transition-all`}
+                      className={`${res.color} text-white p-4 rounded-2xl flex flex-col justify-center items-center gap-3 hover:-translate-y-1 hover:shadow-lg transition-all`}
                     >
                       <ResIcon size={32} />
                       <span className="font-bold text-sm text-center">{res.name}</span>
@@ -311,7 +311,7 @@ export default function ContentTracker() {
           <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
             <div 
               className="h-full bg-gradient-to-r from-pink-500 to-rose-500 transition-all duration-1000"
-              style={{ width: `\${Math.min((publishedVideos / (contentGoals?.weekly || 3)) * 100, 100)}%` }}
+              style={{ width: `${Math.min((publishedVideos / (contentGoals?.weekly || 3)) * 100, 100)}%` }}
             />
           </div>
         </div>
@@ -371,7 +371,7 @@ export default function ContentTracker() {
                 {/* Dynamic Background Gradient based on progress */}
                 <div 
                   className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none transition-all duration-1000"
-                  style={{ background: `linear-gradient(90deg, #6366f1 0%, transparent \${progress}%)` }}
+                  style={{ background: `linear-gradient(90deg, #6366f1 0%, transparent ${progress}%)` }}
                 />
 
                 {/* Top Row */}
@@ -380,7 +380,7 @@ export default function ContentTracker() {
                     <div className="flex flex-wrap items-center gap-3 mb-3">
                       <h3 className="text-2xl font-black text-gray-900 dark:text-white line-clamp-1">{video.title}</h3>
                       {category && (
-                        <span className="px-4 py-1.5 rounded-xl text-xs font-black tracking-widest uppercase shadow-sm" style={{ backgroundColor: category.color + '22', color: category.color, border: `1px solid \${category.color}44` }}>
+                        <span className="px-4 py-1.5 rounded-xl text-xs font-black tracking-widest uppercase shadow-sm" style={{ backgroundColor: category.color + '22', color: category.color, border: `1px solid ${category.color}44` }}>
                           {category.name}
                         </span>
                       )}
@@ -412,12 +412,12 @@ export default function ContentTracker() {
                 {/* Pipeline Nodes (The visually rich 3D progress bar) */}
                 <div className="pipeline-track-container mb-10 relative z-10 hidden sm:block">
                   <div className="pipeline-bg-track"></div>
-                  <div className="pipeline-fill-track" style={{ width: `calc(\${progress}% - 2rem)` }}></div>
+                  <div className="pipeline-fill-track" style={{ width: `calc(${progress}% - 2rem)` }}></div>
                   
                   <div className="flex justify-between relative px-8">
                     {PIPELINE_STAGES.map((stage, idx) => {
                       const isCompleted = video.stages[stage.key];
-                      const isAnimating = animatingNodes[`\${video.id}-\${stage.key}`];
+                      const isAnimating = animatingNodes[`${video.id}-${stage.key}`];
                       // Locked if not first stage AND previous stage is NOT completed
                       const isLocked = idx > 0 && !video.stages[PIPELINE_STAGES[idx - 1].key];
                       
@@ -482,7 +482,7 @@ export default function ContentTracker() {
                       <span className="text-sm font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md">{progress}%</span>
                     </div>
                     <div className="h-3 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
-                      <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `\${progress}%` }} />
+                      <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
 
@@ -739,6 +739,7 @@ export default function ContentTracker() {
     </div>
   );
 }
+
 
 
 
