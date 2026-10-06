@@ -22,7 +22,7 @@ export default function Layout() {
     <div className="app-container">
       <nav className="top-nav">
         <Link to="/" className="nav-brand">
-          <div style={{width:'32px',height:'32px',background:'#111',color:'#fff',borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px'}}>TS</div>
+          <img src={import.meta.env.BASE_URL + 'logo.jpg'} alt='Logo' style={{width:'40px',height:'40px',borderRadius:'50%',objectFit:'cover'}} />
           TO START
           </Link>
         
@@ -48,5 +48,6 @@ export default function Layout() {
     </div>
   );
 }
+
 
 
