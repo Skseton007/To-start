@@ -244,7 +244,7 @@ export default function ContentTracker() {
                     <div className="flex flex-wrap items-center gap-3 mb-3">
                       <h3 className="text-2xl font-black text-gray-900 dark:text-white line-clamp-1">{video.title}</h3>
                       {category && (
-                        <span className="px-4 py-1.5 rounded-xl text-xs font-black tracking-widest uppercase shadow-sm" style={{ backgroundColor: category.color + '22', color: category.color, border: \`1px solid \${category.color}44\` }}>
+                        <span className="px-4 py-1.5 rounded-xl text-xs font-black tracking-widest uppercase shadow-sm" style={{ backgroundColor: category.color + '22', color: category.color, border: `1px solid ${category.color}44` }}>
                           {category.name}
                         </span>
                       )}
@@ -548,5 +548,6 @@ export default function ContentTracker() {
     </div>
   );
 }
+
 
 
