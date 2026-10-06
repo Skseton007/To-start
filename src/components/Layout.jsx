@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink, Link } from 'react-router-dom';
 import QuickAdd from './QuickAdd';
@@ -22,9 +21,24 @@ export default function Layout() {
     <div className="app-container">
       <nav className="top-nav">
         <Link to="/" className="nav-brand">
-          <img src={import.meta.env.BASE_URL + 'logo.jpg'} alt='Logo' style={{width:'40px',height:'40px',borderRadius:'50%',objectFit:'cover'}} />
+          <img 
+            src={import.meta.env.BASE_URL + 'logo.jpg'} 
+            alt="Logo" 
+            style={{
+              width: '44px', 
+              height: '44px', 
+              borderRadius: '50%', 
+              objectFit: 'cover',
+              boxShadow: '0 8px 16px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4), 0 -2px 8px rgba(0,0,0,0.1)',
+              border: '2px solid rgba(255,255,255,0.8)',
+              transform: 'translateY(-1px)',
+              transition: 'transform 0.2s, box-shadow 0.2s'
+            }} 
+            onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-3px) scale(1.05)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.6)'; }}
+            onMouseOut={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4), 0 -2px 8px rgba(0,0,0,0.1)'; }}
+          />
           TO START
-          </Link>
+        </Link>
         
         <div className="nav-pill hidden md:flex">
           <NavLink to="/" end>Dashboard</NavLink>
@@ -48,6 +62,3 @@ export default function Layout() {
     </div>
   );
 }
-
-
-
