@@ -70,7 +70,7 @@ export default function ContentTracker() {
       const prevStageKey = PIPELINE_STAGES[index - 1].key;
       if (!video.stages[prevStageKey]) {
         // Shake animation could go here, or just simple alert for now
-        alert(`Please complete the `${PIPELINE_STAGES[index - 1].label}` stage first!`);
+        alert(`Please complete the ${PIPELINE_STAGES[index - 1].label} stage first!`);
         return;
       }
     }
@@ -739,4 +739,5 @@ export default function ContentTracker() {
     </div>
   );
 }
+
 
