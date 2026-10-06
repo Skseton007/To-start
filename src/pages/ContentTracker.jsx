@@ -442,7 +442,7 @@ export default function ContentTracker() {
                             <IconComp size={20} strokeWidth={isCompleted ? 2.5 : 2} />
                           </div>
                           
-                          <span className={`text-xs font-black tracking-wide uppercase transition-colors ${isCompleted ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'} ${(!isLocked && !isCompleted) ? 'group-hover/stage:text-indigo-500' : ''}\`}>
+                          <span className={`text-xs font-black tracking-wide uppercase transition-colors ${isCompleted ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'} ${(!isLocked && !isCompleted) ? 'group-hover/stage:text-indigo-500' : ''}`}>
                             {stage.label}
                           </span>
                         </div>
@@ -739,5 +739,6 @@ export default function ContentTracker() {
     </div>
   );
 }
+
 
 
