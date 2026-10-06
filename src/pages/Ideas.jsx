@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useIdeas } from "../store/useStore";
 import { 
-  Plus, Search, Filter, Edit2, Trash2, ArrowRight, Video, Tag, Calendar, X, Image as ImageIcon
+  Plus, Search, Filter, Edit2, Trash2, ArrowRight, Video, Tag, Calendar, X, Image as ImageIcon, Lightbulb
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -365,3 +365,4 @@ export default function Ideas() {
     </div>
   );
 }
+
