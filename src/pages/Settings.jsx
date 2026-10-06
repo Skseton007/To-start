@@ -3,16 +3,11 @@ import {
   User, Moon, Sun, Target, Tag, Globe, 
   Database, AlertTriangle, Plus, Trash2 
 } from 'lucide-react';
-import { useStore } from "../store/useStore";
+import { useSettings } from "../store/useStore";
 import { v4 as uuidv4 } from 'uuid';
 
 export default function Settings() {
-  const { 
-    settings, updateSettings, 
-    contentGoals, updateContentGoals,
-    categories, addCategory, deleteCategory,
-    platforms, clearData, addSampleData
-  } = useStore();
+  const { settings, updateSettings, contentGoals, updateContentGoals, categories, addCategory, deleteCategory, platforms, clearData, addSampleData } = useSettings();
 
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryColor, setNewCategoryColor] = useState('#ffffff');
@@ -191,3 +186,4 @@ export default function Settings() {
     </div>
   );
 }
+

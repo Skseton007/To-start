@@ -5,10 +5,14 @@ import {
 } from 'recharts';
 import { format, subDays, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { CheckSquare, Lightbulb, FileText, Video, Target } from 'lucide-react';
-import { useStore } from "../store/useStore";
+import { useTasks, useIdeas, useScripts, useVideos, useSettings } from "../store/useStore";
 
 export default function History() {
-  const { tasks, ideas, scripts, videos, settings } = useStore();
+  const { tasks } = useTasks();
+  const { ideas } = useIdeas();
+  const { scripts } = useScripts();
+  const { videos } = useVideos();
+  const { settings } = useSettings();
   const [period, setPeriod] = useState('Week');
 
   const themeColors = {
@@ -164,3 +168,4 @@ export default function History() {
     </div>
   );
 }
+

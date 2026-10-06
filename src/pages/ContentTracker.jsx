@@ -6,18 +6,17 @@ import {
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
-import { useStore } from "../store/useStore";
+import { useVideos, useSettings, useIdeas, useScripts } from "../store/useStore";
 
 const PIPELINE_STAGES = [
   'Idea', 'Script', 'Recording', 'Editing', 'Review', 'Ready', 'Published'
 ];
 
 export default function ContentTracker() {
-  const { 
-    videos, addVideo, updateVideo, deleteVideo, 
-    updateStage, updatePlatform, contentGoals,
-    categories, ideas, scripts
-  } = useStore();
+  const { videos, addVideo, updateVideo, deleteVideo, updateStage, updatePlatform } = useVideos();
+  const { contentGoals, categories } = useSettings();
+  const { ideas } = useIdeas();
+  const { scripts } = useScripts();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filter, setFilter] = useState('All');
@@ -416,3 +415,5 @@ export default function ContentTracker() {
     </div>
   );
 }
+
+

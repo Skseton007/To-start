@@ -100,6 +100,9 @@ export function useSettings() {
     updateSettings: (u) => s.updateSettings(u),
     updateContentGoals: (g) => s.updateContentGoals(g),
     addCategory: (c) => s.addCategory(c),
+    deleteCategory: (id) => s.deleteCategory(id),
+    clearData: () => s.resetAll(),
+    addSampleData: () => { /* Not implemented natively in store, ignoring or calling reset */ }
   };
 }
 

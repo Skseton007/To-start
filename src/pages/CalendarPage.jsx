@@ -8,11 +8,12 @@ import {
   startOfWeek, endOfWeek, isSameMonth, isSameDay, isToday, 
   addMonths, subMonths 
 } from 'date-fns';
-import { useStore } from "../store/useStore";
+import { useTasks, useVideos } from "../store/useStore";
 import { v4 as uuidv4 } from 'uuid';
 
 export default function CalendarPage() {
-  const { tasks, videos, addTask } = useStore();
+  const { tasks, addTask } = useTasks();
+  const { videos } = useVideos();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [newTaskText, setNewTaskText] = useState('');
@@ -157,3 +158,4 @@ export default function CalendarPage() {
     </div>
   );
 }
+

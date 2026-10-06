@@ -580,6 +580,11 @@ class DataStore {
   }
 
   // ============ CATEGORIES ============
+  deleteCategory(id) {
+    this.data.categories = this.data.categories.filter(c => c.id !== id);
+    this.notify();
+  }
+
   addCategory(category) {
     const newCat = {
       id: uuidv4(),
