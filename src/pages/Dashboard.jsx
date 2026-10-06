@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTasks, useIdeas, useVideos, useSettings } from '../store/useStore';
-import { Activity, Edit3, Target, Video, Plus, CheckCircle2, PlayCircle } from 'lucide-react';
+import { Activity, Target, Video, Plus, CheckCircle2, PlayCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function Dashboard() {
@@ -25,7 +25,7 @@ export default function Dashboard() {
           <span className="serif-italic">{settings?.userName?.split(' ')[0] || 'Creator'}</span>.
         </h1>
         <p className="hero-subtitle">
-          {format(new Date(), 'EEEE, MMMM do')} — All your ideas and tasks in one beautiful space.
+          {format(new Date(), 'EEEE, MMMM do')} - All your ideas and tasks in one beautiful space.
         </p>
 
         <div className="hero-actions">
