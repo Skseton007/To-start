@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, Link } from 'react-router-dom';
 import QuickAdd from './QuickAdd';
 import SearchModal from './SearchModal';
 
@@ -21,10 +21,10 @@ export default function Layout() {
   return (
     <div className="app-container">
       <nav className="top-nav">
-        <div className="nav-brand">
+        <Link to="/" className="nav-brand">
           <div style={{width:'32px',height:'32px',background:'#111',color:'#fff',borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'14px'}}>TS</div>
           TO START
-        </div>
+          </Link>
         
         <div className="nav-pill hidden md:flex">
           <NavLink to="/" end>Dashboard</NavLink>
@@ -48,3 +48,5 @@ export default function Layout() {
     </div>
   );
 }
+
+
