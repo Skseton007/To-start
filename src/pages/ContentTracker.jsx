@@ -69,7 +69,6 @@ export default function ContentTracker() {
     if (index > 0) {
       const prevStageKey = PIPELINE_STAGES[index - 1].key;
       if (!video.stages[prevStageKey]) {
-        // Shake animation could go here, or just simple alert for now
         alert(`Please complete the ${PIPELINE_STAGES[index - 1].label} stage first!`);
         return;
       }
@@ -200,6 +199,32 @@ export default function ContentTracker() {
       case 'recording':
         return (
           <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <label className="block font-bold text-gray-700 dark:text-gray-300">Camera Source</label>
+                <select 
+                  className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg appearance-none"
+                  value={workspace.cameraSource || 'System Default'}
+                  onChange={(e) => updateVideo(video.id, { workspace: { ...workspace, cameraSource: e.target.value } })}
+                >
+                  <option value="System Default">System Default Camera</option>
+                  <option value="Adobe Podcast">Adobe Podcast Camera</option>
+                  <option value="DSLR / Capture Card">DSLR / Capture Card</option>
+                  <option value="OBS Virtual Camera">OBS Virtual Camera</option>
+                  <option value="Screen Record">Screen Record</option>
+                </select>
+              </div>
+              <div className="space-y-4">
+                <label className="block font-bold text-gray-700 dark:text-gray-300">Local Save Folder</label>
+                <input 
+                  type="text"
+                  className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg"
+                  placeholder="e.g. D:\Videos\Raw\"
+                  value={workspace.saveFolder || ''}
+                  onChange={(e) => updateVideo(video.id, { workspace: { ...workspace, saveFolder: e.target.value } })}
+                />
+              </div>
+            </div>
             <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800">
               <h3 className="font-bold text-indigo-800 dark:text-indigo-300 mb-4 text-lg">Pre-flight Checklist</h3>
               <div className="space-y-3">
@@ -227,7 +252,7 @@ export default function ContentTracker() {
                       href={res.url} 
                       target="_blank" 
                       rel="noreferrer"
-                      className={`${res.color} text-white p-4 rounded-2xl flex flex-col justify-center items-center gap-3 hover:-translate-y-1 hover:shadow-lg transition-all`}
+                      className={`${res.color} text-white p-4 rounded-2xl flex flex-col justify-center items-center gap-3 hover:-translate-y-2 hover:scale-110 hover:shadow-xl transition-all duration-300 ease-out`}
                     >
                       <ResIcon size={32} />
                       <span className="font-bold text-sm text-center">{res.name}</span>
@@ -739,7 +764,3 @@ export default function ContentTracker() {
     </div>
   );
 }
-
-
-
-
