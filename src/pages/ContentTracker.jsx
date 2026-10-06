@@ -235,7 +235,7 @@ export default function ContentTracker() {
                 {/* Dynamic Background Gradient based on progress */}
                 <div 
                   className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none transition-all duration-1000"
-                  style={{ background: \`linear-gradient(90deg, #6366f1 0%, transparent \${progress}%)\` }}
+                  style={{ background: `linear-gradient(90deg, #6366f1 0%, transparent ${progress}%)` }}
                 />
 
                 {/* Top Row */}
@@ -548,4 +548,5 @@ export default function ContentTracker() {
     </div>
   );
 }
+
 
