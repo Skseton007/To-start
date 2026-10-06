@@ -34,7 +34,7 @@ export default function Dashboard() {
 
         <div className="hero-3d-scene">
           <div className="center-portrait-wrapper">
-            <img src="/user-photo.jpg" alt="User" className="center-portrait" onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80'; }} />
+            <img src={import.meta.env.BASE_URL + 'user-photo.jpg'} alt="User" className="center-portrait" />
           </div>
 
           <div className="glass-card float-1">
