@@ -57,7 +57,7 @@ export default function ContentTracker() {
     updateStage(videoId, stageKey, !isCurrentlyCompleted);
     if (!isCurrentlyCompleted) {
       // Trigger the 3D pop animation
-      const animKey = \`\${videoId}-\${stageKey}\`;
+      const animKey = `${videoId}-\${stageKey}`;
       setAnimatingNodes(prev => ({ ...prev, [animKey]: true }));
       setTimeout(() => {
         setAnimatingNodes(prev => ({ ...prev, [animKey]: false }));
@@ -175,7 +175,7 @@ export default function ContentTracker() {
           <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
             <div 
               className="h-full bg-gradient-to-r from-pink-500 to-rose-500 transition-all duration-1000"
-              style={{ width: \`\${Math.min((publishedVideos / (contentGoals?.weekly || 3)) * 100, 100)}%\` }}
+              style={{ width: `${Math.min((publishedVideos / (contentGoals?.weekly || 3)) * 100, 100)}%` }}
             />
           </div>
         </div>
@@ -281,7 +281,7 @@ export default function ContentTracker() {
                   <div className="flex justify-between relative px-8">
                     {PIPELINE_STAGES.map((stage) => {
                       const isCompleted = video.stages[stage.key];
-                      const isAnimating = animatingNodes[\`\${video.id}-\${stage.key}\`];
+                      const isAnimating = animatingNodes[`${video.id}-\${stage.key}`];
                       
                       const IconComp = stage.Icon;
 
@@ -292,17 +292,17 @@ export default function ContentTracker() {
                           className="flex flex-col items-center gap-3 cursor-pointer group/stage relative"
                         >
                           {/* The 3D Node */}
-                          <div className={\`
+                          <div className={`
                             w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 z-10
                             \${isCompleted 
                               ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-[0_8px_15px_rgba(99,102,241,0.4)] scale-110 border-2 border-white/20' 
                               : 'bg-white dark:bg-gray-800 text-gray-400 shadow-md border border-gray-200 dark:border-gray-700 group-hover/stage:shadow-lg group-hover/stage:scale-110'}
                             \${isAnimating ? 'animate-pop3d' : ''}
-                          \`}>
+                          `}>
                             <IconComp size={20} strokeWidth={isCompleted ? 2.5 : 2} className={isCompleted ? '' : 'group-hover/stage:text-indigo-400'} />
                           </div>
                           
-                          <span className={\`text-xs font-black tracking-wide uppercase transition-colors \${isCompleted ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover/stage:text-gray-600 dark:group-hover/stage:text-gray-300'}\`}>
+                          <span className={`text-xs font-black tracking-wide uppercase transition-colors \${isCompleted ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover/stage:text-gray-600 dark:group-hover/stage:text-gray-300'}`}>
                             {stage.label}
                           </span>
                         </div>
@@ -320,10 +320,10 @@ export default function ContentTracker() {
                          <div 
                           key={stage.key}
                           onClick={() => handleToggleStage(video.id, stage.key, isCompleted)}
-                          className={\`
+                          className={`
                             flex flex-col items-center justify-center p-3 rounded-2xl gap-2 shadow-sm border transition-all
                             \${isCompleted ? 'bg-indigo-500 border-indigo-600 text-white shadow-indigo-500/30' : 'bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-400'}
-                          \`}
+                          `}
                          >
                            <IconComp size={18} />
                            <span className="text-[10px] font-bold uppercase">{stage.label}</span>
@@ -340,7 +340,7 @@ export default function ContentTracker() {
                       <span className="text-sm font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md">{progress}%</span>
                     </div>
                     <div className="h-3 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
-                      <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: \`\${progress}%\` }} />
+                      <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
 
@@ -348,7 +348,7 @@ export default function ContentTracker() {
                     {hasPlatform(video, 'youtube') && (
                       <button 
                         onClick={() => togglePlatform(video.id, 'youtube', getPlatformStatus(video, 'youtube'))}
-                        className={\`flex items-center gap-2 px-5 py-3 rounded-2xl font-black transition-all border shadow-sm \${getPlatformStatus(video, 'youtube') ? 'bg-red-50 dark:bg-red-900/20 text-red-600 border-red-200 dark:border-red-800' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 hover:border-red-300 hover:text-red-500'}\`}
+                        className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black transition-all border shadow-sm \${getPlatformStatus(video, 'youtube') ? 'bg-red-50 dark:bg-red-900/20 text-red-600 border-red-200 dark:border-red-800' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 hover:border-red-300 hover:text-red-500'}`}
                       >
                         <Play size={20} className={getPlatformStatus(video, 'youtube') ? 'fill-current' : ''} /> 
                         <span className="hidden sm:inline">YouTube</span>
@@ -357,7 +357,7 @@ export default function ContentTracker() {
                     {hasPlatform(video, 'instagram') && (
                       <button 
                         onClick={() => togglePlatform(video.id, 'instagram', getPlatformStatus(video, 'instagram'))}
-                        className={\`flex items-center gap-2 px-5 py-3 rounded-2xl font-black transition-all border shadow-sm \${getPlatformStatus(video, 'instagram') ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 border-pink-200 dark:border-pink-800' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 hover:border-pink-300 hover:text-pink-500'}\`}
+                        className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black transition-all border shadow-sm \${getPlatformStatus(video, 'instagram') ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 border-pink-200 dark:border-pink-800' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 hover:border-pink-300 hover:text-pink-500'}`}
                       >
                         <Camera size={20} className={getPlatformStatus(video, 'instagram') ? 'fill-current' : ''} />
                         <span className="hidden sm:inline">Instagram</span>
@@ -435,7 +435,7 @@ export default function ContentTracker() {
               <div>
                 <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Platforms</label>
                 <div className="flex gap-4">
-                  <label className={\`flex items-center gap-3 p-5 rounded-2xl cursor-pointer flex-1 transition-all border-2 \${formData.platforms.includes('youtube') ? 'bg-red-50 dark:bg-red-900/20 border-red-500' : 'bg-gray-50 dark:bg-[#1a1a1a] border-transparent hover:border-gray-300 dark:hover:border-gray-600'}\`}>
+                  <label className={`flex items-center gap-3 p-5 rounded-2xl cursor-pointer flex-1 transition-all border-2 \${formData.platforms.includes('youtube') ? 'bg-red-50 dark:bg-red-900/20 border-red-500' : 'bg-gray-50 dark:bg-[#1a1a1a] border-transparent hover:border-gray-300 dark:hover:border-gray-600'}`}>
                     <input 
                       type="checkbox" 
                       className="hidden"
@@ -448,9 +448,9 @@ export default function ContentTracker() {
                       }}
                     />
                     <Play size={24} className={formData.platforms.includes('youtube') ? "text-red-500 fill-current" : "text-gray-400"} /> 
-                    <span className={\`font-bold text-lg \${formData.platforms.includes('youtube') ? 'text-red-600 dark:text-red-400' : 'text-gray-500'}\`}>YouTube</span>
+                    <span className={`font-bold text-lg \${formData.platforms.includes('youtube') ? 'text-red-600 dark:text-red-400' : 'text-gray-500'}`}>YouTube</span>
                   </label>
-                  <label className={\`flex items-center gap-3 p-5 rounded-2xl cursor-pointer flex-1 transition-all border-2 \${formData.platforms.includes('instagram') ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-500' : 'bg-gray-50 dark:bg-[#1a1a1a] border-transparent hover:border-gray-300 dark:hover:border-gray-600'}\`}>
+                  <label className={`flex items-center gap-3 p-5 rounded-2xl cursor-pointer flex-1 transition-all border-2 \${formData.platforms.includes('instagram') ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-500' : 'bg-gray-50 dark:bg-[#1a1a1a] border-transparent hover:border-gray-300 dark:hover:border-gray-600'}`}>
                     <input 
                       type="checkbox" 
                       className="hidden"
@@ -463,7 +463,7 @@ export default function ContentTracker() {
                       }}
                     />
                     <Camera size={24} className={formData.platforms.includes('instagram') ? "text-pink-600 fill-current" : "text-gray-400"} /> 
-                    <span className={\`font-bold text-lg \${formData.platforms.includes('instagram') ? 'text-pink-600 dark:text-pink-400' : 'text-gray-500'}\`}>Instagram</span>
+                    <span className={`font-bold text-lg \${formData.platforms.includes('instagram') ? 'text-pink-600 dark:text-pink-400' : 'text-gray-500'}`}>Instagram</span>
                   </label>
                 </div>
               </div>
@@ -548,3 +548,4 @@ export default function ContentTracker() {
     </div>
   );
 }
+
