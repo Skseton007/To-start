@@ -276,7 +276,7 @@ export default function ContentTracker() {
                 {/* Pipeline Nodes (The visually rich 3D progress bar) */}
                 <div className="pipeline-track-container mb-10 relative z-10 hidden sm:block">
                   <div className="pipeline-bg-track"></div>
-                  <div className="pipeline-fill-track" style={{ width: \`calc(\${progress}% - 2rem)\` }}></div>
+                  <div className="pipeline-fill-track" style={{ width: `calc(${progress}% - 2rem)` }}></div>
                   
                   <div className="flex justify-between relative px-8">
                     {PIPELINE_STAGES.map((stage) => {
@@ -548,6 +548,7 @@ export default function ContentTracker() {
     </div>
   );
 }
+
 
 
 
