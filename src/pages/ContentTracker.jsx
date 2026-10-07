@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useVideos, useSettings, useIdeas, useScripts } from "../store/useStore";
+import VideoRecorder from '../components/VideoRecorder';
 
 const PIPELINE_STAGES = [
   { key: 'idea', label: 'Ideation', Icon: Lightbulb },
@@ -199,32 +200,7 @@ export default function ContentTracker() {
       case 'recording':
         return (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <label className="block font-bold text-gray-700 dark:text-gray-300">Camera Source</label>
-                <select 
-                  className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg appearance-none"
-                  value={workspace.cameraSource || 'System Default'}
-                  onChange={(e) => updateVideo(video.id, { workspace: { ...workspace, cameraSource: e.target.value } })}
-                >
-                  <option value="System Default">System Default Camera</option>
-                  <option value="Adobe Podcast">Adobe Podcast Camera</option>
-                  <option value="DSLR / Capture Card">DSLR / Capture Card</option>
-                  <option value="OBS Virtual Camera">OBS Virtual Camera</option>
-                  <option value="Screen Record">Screen Record</option>
-                </select>
-              </div>
-              <div className="space-y-4">
-                <label className="block font-bold text-gray-700 dark:text-gray-300">Local Save Folder</label>
-                <input 
-                  type="text"
-                  className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg"
-                  placeholder="e.g. D:\Videos\Raw\"
-                  value={workspace.saveFolder || ''}
-                  onChange={(e) => updateVideo(video.id, { workspace: { ...workspace, saveFolder: e.target.value } })}
-                />
-              </div>
-            </div>
+            <VideoRecorder workspace={workspace} updateWorkspace={(u) => updateVideo(video.id, { workspace: { ...workspace, ...u } })} />
             <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800">
               <h3 className="font-bold text-indigo-800 dark:text-indigo-300 mb-4 text-lg">Pre-flight Checklist</h3>
               <div className="space-y-3">
