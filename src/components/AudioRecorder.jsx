@@ -3,7 +3,7 @@ import { Mic, Square, Save, Smartphone, Settings } from 'lucide-react';
 import { useToast } from './Toast';
 
 export default function AudioRecorder({ onSaveIdea }) {
-  const [isMobile, setIsMobile] = useState(false);
+  
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState('');
   const [isRecording, setIsRecording] = useState(false);
@@ -17,7 +17,7 @@ export default function AudioRecorder({ onSaveIdea }) {
   const toast = useToast();
 
   useEffect(() => {
-    setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    
     return () => stopStream();
   }, []);
 
@@ -59,12 +59,12 @@ export default function AudioRecorder({ onSaveIdea }) {
       };
       
       mr.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(chunksRef.current, { type: 'audio/mpeg' });
         try {
           if (window.showSaveFilePicker) {
             const handle = await window.showSaveFilePicker({
-              suggestedName: `${title.trim() || 'QuickIdea'}_${Date.now()}.webm`,
-              types: [{ description: 'Audio File', accept: { 'audio/webm': ['.webm'] } }]
+              suggestedName: `${title.trim() || 'QuickIdea'}_${Date.now()}.mp3`,
+              types: [{ description: 'Audio File', accept: { 'audio/mpeg': ['.mp3'] } }]
             });
             const writable = await handle.createWritable();
             await writable.write(blob);
@@ -74,7 +74,7 @@ export default function AudioRecorder({ onSaveIdea }) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${title.trim() || 'QuickIdea'}_${Date.now()}.webm`;
+            a.download = `${title.trim() || 'QuickIdea'}_${Date.now()}.mp3`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -117,44 +117,7 @@ export default function AudioRecorder({ onSaveIdea }) {
     return `${m}:${s}`;
   };
 
-  if (isMobile) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wider">Idea Title *</label>
-          <input 
-            type="text" 
-            placeholder="e.g. Next Big Video Idea"
-            className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-purple-500 outline-none transition-all font-bold text-xl"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-          />
-        </div>
-        <div className="relative overflow-hidden inline-block w-full">
-          <button className="w-full flex flex-col items-center justify-center gap-3 bg-purple-600 text-white p-6 rounded-3xl font-bold hover:bg-purple-700 transition-colors shadow-lg">
-            <Smartphone size={32} /> 
-            <span>Open Mobile Voice Recorder</span>
-          </button>
-          <input 
-            type="file" 
-            accept="audio/*" 
-            capture="microphone" 
-            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-            onChange={(e) => {
-              if (e.target.files.length > 0) {
-                 if (title.trim()) {
-                   onSaveIdea({ title: title.trim(), description: "Voice Idea saved to mobile device." });
-                 } else {
-                   toast.info("Audio saved to your device. Next time, add a title first to save it to your Ideas list too!");
-                 }
-              }
-            }}
-          />
-        </div>
-        <p className="text-gray-500 text-center text-sm font-medium">Your recording will be saved directly to your phone's media storage.</p>
-      </div>
-    );
-  }
+
 
   return (
     <div className="space-y-6">
@@ -207,3 +170,7 @@ export default function AudioRecorder({ onSaveIdea }) {
     </div>
   );
 }
+
+
+
+
