@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { useTasks, useSettings } from '../store/useStore';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
@@ -146,7 +146,7 @@ export default function Today() {
           </div>
         ) : (
           filteredTasks.map(task => (
-            <div key={task.id} className={`task-item card p-4 flex flex-wrap sm:flex-nowrap items-start gap-4 group transition-all hover:shadow-md ${task.completed ? 'opacity-60' : ''}`}>
+            <div key={task.id} onDoubleClick={() => handleDuplicate(task)} className={`task-item card p-4 flex flex-wrap sm:flex-nowrap items-start gap-4 group transition-all hover:shadow-md cursor-pointer ${task.completed ? 'opacity-60' : ''}`} title="Double-click to duplicate this task">
               <div className="mt-1">
                 <label className="checkbox-custom flex items-center cursor-pointer">
                   <input type="checkbox" className="hidden" checked={!!task.completed} onChange={() => handleToggleComplete(task)} />
@@ -241,3 +241,4 @@ export default function Today() {
     </div>
   );
 }
+

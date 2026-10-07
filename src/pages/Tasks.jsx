@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { useTasks, useSettings } from '../store/useStore';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
@@ -221,7 +221,7 @@ export default function Tasks() {
                 <Calendar size={18} className="text-gray-400" /> {formatGroupDate(dateStr)}
               </h2>
               {groupedTasks[dateStr].map(task => (
-                <div key={task.id} className={`task-item card p-4 flex flex-wrap sm:flex-nowrap items-start gap-4 group transition-all hover:shadow-md ${task.completed ? 'opacity-60' : ''} ${selectedTasks.includes(task.id) ? 'ring-2 ring-blue-500' : ''}`}>
+                <div key={task.id} onDoubleClick={() => handleDuplicate(task)} className={`task-item card p-4 flex flex-wrap sm:flex-nowrap items-start gap-4 group transition-all hover:shadow-md cursor-pointer ${task.completed ? 'opacity-60' : ''} ${selectedTasks.includes(task.id) ? 'ring-2 ring-blue-500' : ''}`} title="Double-click to duplicate this task">
                   <div className="mt-1 flex gap-3 items-center">
                     <input type="checkbox" checked={selectedTasks.includes(task.id)} onChange={() => toggleSelectTask(task.id)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
                     <label className="checkbox-custom flex items-center cursor-pointer">
@@ -325,3 +325,4 @@ export default function Tasks() {
     </div>
   );
 }
+

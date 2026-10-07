@@ -1,4 +1,4 @@
-// Central Data Store with localStorage persistence
+﻿// Central Data Store with localStorage persistence
 import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY = 'tostart_data';
@@ -252,7 +252,23 @@ class DataStore {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
+        let parsed = JSON.parse(stored);
+        
+        // --- Daily Routine Reset Logic ---
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (parsed.lastLoginDate && parsed.lastLoginDate !== todayStr) {
+          // It's a new day! Reset all tasks to be incomplete and move them to today
+          if (parsed.tasks && Array.isArray(parsed.tasks)) {
+            parsed.tasks = parsed.tasks.map(task => ({
+              ...task,
+              completed: false,
+              date: todayStr,
+              completedAt: null
+            }));
+          }
+        }
+        parsed.lastLoginDate = todayStr;
+        
         // Merge with defaults to handle new fields
         const defaults = getDefaultData();
         return { ...defaults, ...parsed };
@@ -264,6 +280,7 @@ class DataStore {
     const defaults = getDefaultData();
     const sampleData = generateSampleData();
     const data = { ...defaults, ...sampleData };
+    data.lastLoginDate = new Date().toISOString().split('T')[0];
     this.save(data);
     return data;
   }
@@ -707,3 +724,4 @@ class DataStore {
 // Singleton
 const store = new DataStore();
 export default store;
+
