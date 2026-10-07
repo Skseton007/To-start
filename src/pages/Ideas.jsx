@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { useIdeas } from "../store/useStore";
 import { 
   Plus, Search, Filter, Edit2, Trash2, ArrowRight, Video, Tag, Calendar, X, Image as ImageIcon, Lightbulb
 } from 'lucide-react';
 import { format } from 'date-fns';
+import AudioRecorder from '../components/AudioRecorder';
+import { Mic } from 'lucide-react';
 
 export default function Ideas() {
   const { ideas, addIdea, updateIdea, deleteIdea, convertToVideo } = useIdeas();
@@ -13,6 +15,7 @@ export default function Ideas() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [editingIdea, setEditingIdea] = useState(null);
   
   const [formData, setFormData] = useState({
@@ -363,7 +366,37 @@ export default function Ideas() {
           </div>
         </div>
       )}
+          {/* VOICE QUICK IDEA MODAL */}
+      {isVoiceModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in">
+          <div className="bg-white dark:bg-[#121212] rounded-[2rem] w-full max-w-lg overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col">
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-6 flex justify-between items-center text-white shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <Mic size={24} />
+                </div>
+                <h2 className="text-2xl font-black">Quick Voice Idea</h2>
+              </div>
+              <button onClick={() => setIsVoiceModalOpen(false)} className="p-2 rounded-full hover:bg-white/20 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-8">
+              <AudioRecorder 
+                onSaveIdea={(ideaPayload) => {
+                  addIdea({
+                    ...ideaPayload,
+                    status: 'new',
+                    tags: ['voice-memo']
+                  });
+                  setIsVoiceModalOpen(false);
+                }} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
