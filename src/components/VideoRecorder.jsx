@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Video, StopCircle, Camera, CameraOff, Play } from 'lucide-react';
+import { Video, StopCircle, Camera, CameraOff, Play, FlipHorizontal } from 'lucide-react';
 
 export default function VideoRecorder({ workspace, updateWorkspace }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -7,6 +7,7 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
   const [selectedDevice, setSelectedDevice] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
+  const [isMirrored, setIsMirrored] = useState(true);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -191,7 +192,12 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
             <span className="font-bold">Camera is Off</span>
           </div>
         )}
-        <video ref={videoRef} autoPlay muted playsInline className={`w-full h-full object-cover ${!isCameraOn ? 'hidden' : ''}`}></video>
+        <video ref={videoRef} autoPlay muted playsInline className={`w-full h-full object-cover ${!isCameraOn ? 'hidden' : ''} ${isMirrored ? 'scale-x-[-1]' : ''}`}></video>
+        {isCameraOn && !isRecording && (
+          <button onClick={() => setIsMirrored(!isMirrored)} className="absolute bottom-4 right-4 bg-black/50 hover:bg-black/70 text-white p-3 rounded-full backdrop-blur-md transition-all" title="Mirror Camera">
+            <FlipHorizontal size={20} className={isMirrored ? 'text-indigo-400' : 'text-white'} />
+          </button>
+        )}
         {isRecording && (
           <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2 animate-pulse">
             <div className="w-2 h-2 bg-white rounded-full"></div> REC
@@ -201,3 +207,4 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
     </div>
   );
 }
+
