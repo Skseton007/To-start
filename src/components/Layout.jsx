@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink, Link } from 'react-router-dom';
 import QuickAdd from './QuickAdd';
 import SearchModal from './SearchModal';
+import NotificationToggle from './NotificationToggle';
+import NotificationManager from './NotificationManager';
 import { Home, Target, CheckCircle2, Lightbulb, Video, Search } from 'lucide-react';
 
 export default function Layout() {
@@ -39,6 +41,7 @@ export default function Layout() {
         </div>
 
         <div className="nav-actions flex items-center gap-2">
+          <NotificationToggle />
           <button className="btn-dark hidden md:inline-flex" onClick={() => setSearchOpen(true)}>Search</button>
           <button className="md:hidden p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors" onClick={() => setSearchOpen(true)}>
              <Search size={20} />
@@ -74,6 +77,7 @@ export default function Layout() {
         </NavLink>
       </nav>
       
+      <NotificationManager />
       <QuickAdd />
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
     </div>
