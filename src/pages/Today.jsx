@@ -146,7 +146,7 @@ export default function Today() {
           </div>
         ) : (
           filteredTasks.map(task => (
-            <div key={task.id} className={`task-item card p-4 flex items-start gap-4 group transition-all hover:shadow-md ${task.completed ? 'opacity-60' : ''}`}>
+            <div key={task.id} className={`task-item card p-4 flex flex-wrap sm:flex-nowrap items-start gap-4 group transition-all hover:shadow-md ${task.completed ? 'opacity-60' : ''}`}>
               <div className="mt-1">
                 <label className="checkbox-custom flex items-center cursor-pointer">
                   <input type="checkbox" className="hidden" checked={!!task.completed} onChange={() => handleToggleComplete(task)} />
@@ -170,7 +170,7 @@ export default function Today() {
                 {task.notes && <p className="text-sm text-gray-500 mt-2 truncate">{task.notes}</p>}
               </div>
 
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+              <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-2 ml-auto mt-2 sm:mt-0">
                 <button className="p-2 text-gray-500 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20" onClick={() => handleOpenModal(task)}>
                   <Edit2 size={16} />
                 </button>

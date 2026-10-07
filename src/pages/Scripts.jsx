@@ -157,7 +157,7 @@ export default function Scripts() {
                   </span>
                 </div>
                 
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-2">
                   <button onClick={(e) => handleDelete(e, script.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                     <Trash2 size={16} />
                   </button>

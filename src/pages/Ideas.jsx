@@ -22,7 +22,8 @@ export default function Ideas() {
     tags: '',
     status: 'new',
     notes: '',
-    coverImage: ''
+    coverImage: '',
+    script: ''
   });
 
   const statuses = ['new', 'planning', 'in-progress', 'completed', 'published'];
@@ -211,7 +212,7 @@ export default function Ideas() {
                 <div className={"px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest text-purple-700 bg-purple-100 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800"}>
                   {statusLabels[idea.status]}
                 </div>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-2">
                   <button onClick={(e) => handleDelete(e, idea.id)} className="p-2.5 text-gray-400 hover:text-red-500 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all">
                     <Trash2 size={16} />
                   </button>

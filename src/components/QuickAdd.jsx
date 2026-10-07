@@ -65,7 +65,7 @@ export default function QuickAdd() {
   return (
     <>
       {/* FAB Button */}
-      <div className="fixed bottom-8 right-8 z-[100] flex flex-col items-end">
+      <div className="fixed bottom-28 md:bottom-8 right-4 md:right-8 z-[100] flex flex-col items-end">
         {open && (
           <div className="flex flex-col gap-3 mb-4 items-end animate-slide-in-right">
             {quickOptions.map(opt => (

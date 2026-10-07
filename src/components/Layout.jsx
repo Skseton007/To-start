@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink, Link } from 'react-router-dom';
 import QuickAdd from './QuickAdd';
 import SearchModal from './SearchModal';
+import { Home, Target, CheckCircle2, Lightbulb, Video, Search } from 'lucide-react';
 
 export default function Layout() {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -24,20 +25,9 @@ export default function Layout() {
           <img 
             src={import.meta.env.BASE_URL + 'logo.jpg'} 
             alt="Logo" 
-            style={{
-              width: '44px', 
-              height: '44px', 
-              borderRadius: '50%', 
-              objectFit: 'cover',
-              boxShadow: '0 8px 16px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4), 0 -2px 8px rgba(0,0,0,0.1)',
-              border: '2px solid rgba(255,255,255,0.8)',
-              transform: 'translateY(-1px)',
-              transition: 'transform 0.2s, box-shadow 0.2s'
-            }} 
-            onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-3px) scale(1.05)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.6)'; }}
-            onMouseOut={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4), 0 -2px 8px rgba(0,0,0,0.1)'; }}
+            className="brand-logo"
           />
-          TO START
+          <span className="brand-text hidden sm:inline-block">TO START</span>
         </Link>
         
         <div className="nav-pill hidden md:flex">
@@ -48,14 +38,41 @@ export default function Layout() {
           <NavLink to="/content">Content</NavLink>
         </div>
 
-        <div className="nav-actions">
-          <button className="btn-dark" onClick={() => setSearchOpen(true)}>Search</button>
+        <div className="nav-actions flex items-center gap-2">
+          <button className="btn-dark hidden md:inline-flex" onClick={() => setSearchOpen(true)}>Search</button>
+          <button className="md:hidden p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors" onClick={() => setSearchOpen(true)}>
+             <Search size={20} />
+          </button>
         </div>
       </nav>
 
-      <main className="flex-1 max-w-[1200px] w-full mx-auto p-4 md:p-8">
+      <main className="flex-1 max-w-[1200px] w-full mx-auto p-4 pb-24 md:p-8 md:pb-8">
         <Outlet />
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="mobile-bottom-nav md:hidden">
+        <NavLink to="/" end className="bottom-nav-item">
+          <Home size={20} className="mb-1" />
+          <span>Home</span>
+        </NavLink>
+        <NavLink to="/today" className="bottom-nav-item">
+          <Target size={20} className="mb-1" />
+          <span>Today</span>
+        </NavLink>
+        <NavLink to="/tasks" className="bottom-nav-item">
+          <CheckCircle2 size={20} className="mb-1" />
+          <span>Tasks</span>
+        </NavLink>
+        <NavLink to="/ideas" className="bottom-nav-item">
+          <Lightbulb size={20} className="mb-1" />
+          <span>Ideas</span>
+        </NavLink>
+        <NavLink to="/content" className="bottom-nav-item">
+          <Video size={20} className="mb-1" />
+          <span>Content</span>
+        </NavLink>
+      </nav>
       
       <QuickAdd />
       {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}

@@ -221,7 +221,7 @@ export default function Tasks() {
                 <Calendar size={18} className="text-gray-400" /> {formatGroupDate(dateStr)}
               </h2>
               {groupedTasks[dateStr].map(task => (
-                <div key={task.id} className={`task-item card p-4 flex items-start gap-4 group transition-all hover:shadow-md ${task.completed ? 'opacity-60' : ''} ${selectedTasks.includes(task.id) ? 'ring-2 ring-blue-500' : ''}`}>
+                <div key={task.id} className={`task-item card p-4 flex flex-wrap sm:flex-nowrap items-start gap-4 group transition-all hover:shadow-md ${task.completed ? 'opacity-60' : ''} ${selectedTasks.includes(task.id) ? 'ring-2 ring-blue-500' : ''}`}>
                   <div className="mt-1 flex gap-3 items-center">
                     <input type="checkbox" checked={selectedTasks.includes(task.id)} onChange={() => toggleSelectTask(task.id)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
                     <label className="checkbox-custom flex items-center cursor-pointer">
@@ -246,7 +246,7 @@ export default function Tasks() {
                     {task.notes && <p className="text-sm text-gray-500 mt-2 truncate">{task.notes}</p>}
                   </div>
 
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                  <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-2 ml-auto mt-2 sm:mt-0">
                     <button className="p-2 text-gray-500 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20" onClick={() => handleOpenModal(task)}>
                       <Edit2 size={16} />
                     </button>

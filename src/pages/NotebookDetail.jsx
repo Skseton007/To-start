@@ -213,7 +213,7 @@ export default function NotebookDetail() {
                       </h3>
                       
                       <button 
-                        className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all rounded"
+                        className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all rounded"
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowDeleteConfirm(note.id);
@@ -251,7 +251,7 @@ export default function NotebookDetail() {
                   <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: `${notebook.color}20`, color: notebook.color }}>
                     {format(new Date(selectedNote.updatedAt), 'MMM d, yyyy • h:mm a')}
                   </span>
-                  <span className="text-xs text-gray-400 ml-auto flex items-center opacity-0 transition-opacity group-hover:opacity-100">
+                  <span className="text-xs text-gray-400 ml-auto flex items-center opacity-100 md:opacity-0 transition-opacity md:group-hover:opacity-100">
                     <Save className="w-3 h-3 mr-1" /> Auto-saved
                   </span>
                 </div>
