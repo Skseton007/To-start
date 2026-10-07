@@ -135,12 +135,14 @@ export default function Ideas() {
           </h1>
           <p className="text-gray-500 mt-2 font-medium">Capture and organize your content concepts with image references.</p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-8 py-4 rounded-2xl hover:shadow-[0_10px_20px_rgba(139,92,246,0.4)] transition-all hover:-translate-y-1 font-bold text-lg"
-        >
-          <Plus size={24} /> Add Idea
-        </button>
+        <div className="flex gap-4">
+          <button onClick={() => setIsVoiceModalOpen(true)} className="flex items-center justify-center gap-2 bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-400 px-6 py-4 rounded-2xl hover:shadow-lg transition-all hover:-translate-y-1 font-bold text-lg border border-purple-100 dark:border-purple-900/30">
+            <Mic size={24} /> Quick Idea
+          </button>
+          <button onClick={() => handleOpenModal()} className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-8 py-4 rounded-2xl hover:shadow-[0_10px_20px_rgba(139,92,246,0.4)] transition-all hover:-translate-y-1 font-bold text-lg">
+            <Plus size={24} /> Add Idea
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -400,3 +402,4 @@ export default function Ideas() {
     </div>
   );
 }
+
