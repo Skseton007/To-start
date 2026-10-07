@@ -100,44 +100,52 @@ export default function Today() {
   };
 
   return (
-    <div className="page-container fade-in">
-      <header className="page-header flex justify-between items-center mb-6">
+    <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-fade-in pb-24">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 dark:bg-gray-900/50 p-6 rounded-3xl card-3d">
         <div>
-          <h1 className="text-3xl font-bold">Today</h1>
-          <p className="text-gray-500 flex items-center gap-2 mt-1">
-            <Calendar size={16} /> {format(new Date(), 'EEEE, MMMM d, yyyy')}
+          <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-indigo-600">
+            Today
+          </h1>
+          <p className="text-gray-500 flex items-center gap-2 mt-2 font-medium">
+            <Calendar size={18} /> {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
         </div>
-        <button className="btn btn-primary flex items-center gap-2" onClick={() => handleOpenModal()}>
-          <Plus size={20} /> Add Task
+        <button 
+          onClick={() => handleOpenModal()} 
+          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-4 rounded-2xl hover:shadow-[0_10px_20px_rgba(59,130,246,0.4)] transition-all hover:-translate-y-1 font-bold text-lg"
+        >
+          <Plus size={24} /> Add Task
         </button>
-      </header>
+      </div>
 
       {/* Progress Bar */}
-      <div className="card mb-6 p-4">
-        <div className="flex justify-between text-sm mb-2">
-          <span>Daily Progress</span>
-          <span>{completedCount} / {totalCount} completed ({progressPercent}%)</span>
+      <div className="card-3d bg-white/90 dark:bg-[#121212]/90 backdrop-blur-md p-6 rounded-3xl border border-gray-100 dark:border-gray-800">
+        <div className="flex justify-between text-sm mb-3 font-bold">
+          <span className="text-gray-700 dark:text-gray-300">Daily Progress</span>
+          <span className="text-blue-600 dark:text-blue-400">{completedCount} / {totalCount} completed ({progressPercent}%)</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
-          <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+        <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner">
+          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-1000 ease-out relative" style={{ width: `${progressPercent}%` }}>
+            <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+          </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
         {['All', 'Pending', 'Completed'].map(f => (
           <button 
             key={f}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${filter === f ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'}`}
+            className={`px-6 py-3 rounded-2xl text-sm font-bold transition-all whitespace-nowrap ${filter === f ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:-translate-y-0.5 border border-transparent dark:border-gray-700 shadow-sm'}`}
             onClick={() => setFilter(f)}
           >
             {f}
           </button>
         ))}
       </div>
-
-      {/* Task List */}
+      
+      {/* Task List Placeholder */}
       <div className="task-list space-y-3">
         {filteredTasks.length === 0 ? (
           <div className="text-center py-10 text-gray-500">
@@ -157,7 +165,7 @@ export default function Today() {
               </div>
               
               <div className="flex-1 min-w-0">
-                <h3 className={`font-semibold text-lg truncate ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
+                <h3 className={`font-black text-xl truncate transition-colors ${task.completed ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>{task.title}</h3>
                 <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-500">
                   {task.time && <span className="flex items-center gap-1"><Clock size={12} /> {task.time}</span>}
                   {task.priority && (
@@ -241,4 +249,6 @@ export default function Today() {
     </div>
   );
 }
+
+
 

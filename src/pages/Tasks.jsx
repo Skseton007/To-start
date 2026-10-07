@@ -148,24 +148,30 @@ export default function Tasks() {
   };
 
   return (
-    <div className="page-container fade-in">
-      <header className="page-header flex justify-between items-center mb-6">
+    <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-fade-in pb-24">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 dark:bg-gray-900/50 p-6 rounded-3xl card-3d">
         <div>
-          <h1 className="text-3xl font-bold">Tasks</h1>
-          <p className="text-gray-500 mt-1">Manage all your tasks and todos</p>
+          <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-indigo-600">
+            Tasks
+          </h1>
+          <p className="text-gray-500 mt-2 font-medium">Manage all your tasks and daily routines.</p>
         </div>
-        <button className="btn btn-primary flex items-center gap-2" onClick={() => handleOpenModal()}>
-          <Plus size={20} /> Add Task
+        <button 
+          onClick={() => handleOpenModal()} 
+          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-4 rounded-2xl hover:shadow-[0_10px_20px_rgba(59,130,246,0.4)] transition-all hover:-translate-y-1 font-bold text-lg"
+        >
+          <Plus size={24} /> Add Task
         </button>
-      </header>
+      </div>
 
       {/* Toolbar */}
-      <div className="card p-4 mb-6 flex flex-wrap gap-4 items-center justify-between">
+      <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
         <div className="flex flex-wrap gap-2">
           {['All', 'Today', 'Upcoming', 'Completed', 'High Priority'].map(tab => (
             <button 
               key={tab}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filterTab === tab ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'}`}
+              className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${filterTab === tab ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md scale-105' : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:-translate-y-0.5 border border-transparent dark:border-gray-800'}`}
               onClick={() => setFilterTab(tab)}
             >
               {tab}
@@ -173,21 +179,21 @@ export default function Tasks() {
           ))}
         </div>
         
-        <div className="flex items-center gap-3 flex-1 min-w-[300px] justify-end">
-          <div className="relative flex-1 max-w-xs">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+          <div className="relative flex-1 sm:min-w-[250px]">
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
             <input 
               type="text" 
               placeholder="Search tasks..." 
-              className="input w-full pl-9 pr-4 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700"
+              className="w-full pl-11 pr-4 py-3 rounded-xl bg-white dark:bg-[#1a1a1a] border-none focus:ring-2 focus:ring-blue-500 outline-none font-bold text-base shadow-sm"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
           <div className="relative">
-            <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Filter size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" />
             <select 
-              className="input pl-9 pr-8 py-2 border rounded-lg appearance-none bg-white dark:bg-gray-800 dark:border-gray-700"
+              className="pl-11 pr-10 py-3 rounded-xl bg-white dark:bg-[#1a1a1a] border-none focus:ring-2 focus:ring-blue-500 outline-none appearance-none font-bold text-base shadow-sm"
               value={selectedCategory}
               onChange={e => setSelectedCategory(e.target.value)}
             >
@@ -221,7 +227,7 @@ export default function Tasks() {
                 <Calendar size={18} className="text-gray-400" /> {formatGroupDate(dateStr)}
               </h2>
               {groupedTasks[dateStr].map(task => (
-                <div key={task.id} onDoubleClick={() => handleDuplicate(task)} className={`task-item card p-4 flex flex-wrap sm:flex-nowrap items-start gap-4 group transition-all hover:shadow-md cursor-pointer ${task.completed ? 'opacity-60' : ''} ${selectedTasks.includes(task.id) ? 'ring-2 ring-blue-500' : ''}`} title="Double-click to duplicate this task">
+                <div key={task.id} onDoubleClick={() => handleDuplicate(task)} className={`task-item bg-white/90 dark:bg-[#121212]/90 backdrop-blur-md p-5 rounded-[1.5rem] flex flex-wrap sm:flex-nowrap items-start gap-5 group transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border border-gray-100 dark:border-gray-800 cursor-pointer ${task.completed ? 'opacity-60 grayscale hover:grayscale-0' : 'card-3d'} ${selectedTasks.includes(task.id) ? 'ring-4 ring-blue-500/50 shadow-xl' : ''}`} title="Double-click to duplicate this task">
                   <div className="mt-1 flex gap-3 items-center">
                     <input type="checkbox" checked={selectedTasks.includes(task.id)} onChange={() => toggleSelectTask(task.id)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
                     <label className="checkbox-custom flex items-center cursor-pointer">
@@ -233,7 +239,7 @@ export default function Tasks() {
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <h3 className={`font-semibold text-lg truncate ${task.completed ? 'line-through' : ''}`}>{task.title}</h3>
+                    <h3 className={`font-black text-xl truncate transition-colors ${task.completed ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>{task.title}</h3>
                     <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-500">
                       {task.time && <span className="flex items-center gap-1"><Clock size={12} /> {task.time}</span>}
                       {task.priority && (
@@ -325,4 +331,6 @@ export default function Tasks() {
     </div>
   );
 }
+
+
 
