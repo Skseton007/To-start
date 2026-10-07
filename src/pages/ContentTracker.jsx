@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { 
   Play, Plus, Video, Calendar, CheckCircle2, 
   Edit2, Trash2, Camera, Filter, X, Target, Clock,
@@ -66,14 +66,6 @@ export default function ContentTracker() {
   };
 
   const handleNodeClick = (video, index) => {
-    // Enforce sequential progression: Can only click if previous stage is completed
-    if (index > 0) {
-      const prevStageKey = PIPELINE_STAGES[index - 1].key;
-      if (!video.stages[prevStageKey]) {
-        alert(`Please complete the ${PIPELINE_STAGES[index - 1].label} stage first!`);
-        return;
-      }
-    }
     setActiveWorkspace({ videoId: video.id, stageIndex: index });
   };
 
@@ -420,7 +412,7 @@ export default function ContentTracker() {
                       const isCompleted = video.stages[stage.key];
                       const isAnimating = animatingNodes[`${video.id}-${stage.key}`];
                       // Locked if not first stage AND previous stage is NOT completed
-                      const isLocked = idx > 0 && !video.stages[PIPELINE_STAGES[idx - 1].key];
+                      const isLocked = false;
                       
                       const IconComp = stage.Icon;
 
@@ -456,7 +448,7 @@ export default function ContentTracker() {
                 <div className="sm:hidden mb-8 grid grid-cols-4 gap-4">
                    {PIPELINE_STAGES.map((stage, idx) => {
                       const isCompleted = video.stages[stage.key];
-                      const isLocked = idx > 0 && !video.stages[PIPELINE_STAGES[idx - 1].key];
+                      const isLocked = false;
                       const IconComp = stage.Icon;
                       return (
                          <div 
