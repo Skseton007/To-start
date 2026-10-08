@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useIdeas } from "../store/useStore";
 import { 
   Plus, Search, Filter, Edit2, Trash2, ArrowRight, Video, Tag, Calendar, X, Image as ImageIcon, Lightbulb
@@ -320,6 +320,16 @@ export default function Ideas() {
                 />
               </div>
               
+              <div>
+                <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Script Draft / Outline</label>
+                <textarea 
+                  value={formData.script || ''}
+                  onChange={e => setFormData({...formData, script: e.target.value})}
+                  className="w-full h-48 px-6 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-purple-500 outline-none transition-all font-bold text-lg resize-none shadow-inner"
+                  placeholder="Write down your script, key points, or full outline here..."
+                />
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Category</label>
@@ -402,4 +412,6 @@ export default function Ideas() {
     </div>
   );
 }
+
+
 

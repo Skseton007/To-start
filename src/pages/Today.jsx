@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTasks, useSettings } from '../store/useStore';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
@@ -100,7 +100,7 @@ export default function Today() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-fade-in pb-24">
+    <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-page-enter pb-24">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 dark:bg-gray-900/50 p-6 rounded-3xl card-3d">
         <div>
@@ -153,8 +153,8 @@ export default function Today() {
             <p>No tasks found for {filter.toLowerCase()}.</p>
           </div>
         ) : (
-          filteredTasks.map(task => (
-            <div key={task.id} onDoubleClick={() => handleDuplicate(task)} className={`task-item card p-4 flex flex-wrap sm:flex-nowrap items-start gap-4 group transition-all hover:shadow-md cursor-pointer ${task.completed ? 'opacity-60' : ''}`} title="Double-click to duplicate this task">
+          filteredTasks.map((task, index) => (
+            <div key={task.id} className={`task-item card p-4 flex flex-wrap sm:flex-nowrap items-start gap-4 group transition-all hover:shadow-md cursor-pointer animate-task-enter ${task.completed ? 'opacity-60' : ''}`} style={{ animationDelay: `${index * 0.05}s` }}>
               <div className="mt-1">
                 <label className="checkbox-custom flex items-center cursor-pointer">
                   <input type="checkbox" className="hidden" checked={!!task.completed} onChange={() => handleToggleComplete(task)} />
@@ -179,13 +179,13 @@ export default function Today() {
               </div>
 
               <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-2 ml-auto mt-2 sm:mt-0">
-                <button className="p-2 text-gray-500 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20" onClick={() => handleOpenModal(task)}>
+                <button className="p-2 text-gray-500 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20" onClick={(e) => { e.stopPropagation(); handleOpenModal(task); }} onDoubleClick={(e) => e.stopPropagation()}>
                   <Edit2 size={16} />
                 </button>
-                <button className="p-2 text-gray-500 hover:text-green-500 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20" onClick={() => handleDuplicate(task)}>
+                <button className="p-2 text-gray-500 hover:text-green-500 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20" onClick={(e) => { e.stopPropagation(); handleDuplicate(task); }} onDoubleClick={(e) => e.stopPropagation()}>
                   <Copy size={16} />
                 </button>
-                <button className="p-2 text-gray-500 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => handleDeleteClick(task)}>
+                <button className="p-2 text-gray-500 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" onClick={(e) => { e.stopPropagation(); handleDeleteClick(task); }} onDoubleClick={(e) => e.stopPropagation()}>
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -249,6 +249,8 @@ export default function Today() {
     </div>
   );
 }
+
+
 
 
 

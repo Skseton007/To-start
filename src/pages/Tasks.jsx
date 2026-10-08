@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useTasks, useSettings } from '../store/useStore';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
@@ -148,7 +148,7 @@ export default function Tasks() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-fade-in pb-24">
+    <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-page-enter pb-24">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 dark:bg-gray-900/50 p-6 rounded-3xl card-3d">
         <div>
@@ -226,8 +226,8 @@ export default function Tasks() {
               <h2 className="text-lg font-semibold flex items-center gap-2 border-b pb-2 border-gray-200 dark:border-gray-800">
                 <Calendar size={18} className="text-gray-400" /> {formatGroupDate(dateStr)}
               </h2>
-              {groupedTasks[dateStr].map(task => (
-                <div key={task.id} onDoubleClick={() => handleDuplicate(task)} className={`task-item bg-white/90 dark:bg-[#121212]/90 backdrop-blur-md p-5 rounded-[1.5rem] flex flex-wrap sm:flex-nowrap items-start gap-5 group transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border border-gray-100 dark:border-gray-800 cursor-pointer ${task.completed ? 'opacity-60 grayscale hover:grayscale-0' : 'card-3d'} ${selectedTasks.includes(task.id) ? 'ring-4 ring-blue-500/50 shadow-xl' : ''}`} title="Double-click to duplicate this task">
+              {groupedTasks[dateStr].map((task, index) => (
+                <div key={task.id} className={`task-item bg-white/90 dark:bg-[#121212]/90 backdrop-blur-md p-5 rounded-[1.5rem] flex flex-wrap sm:flex-nowrap items-start gap-5 group transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border border-gray-100 dark:border-gray-800 cursor-pointer animate-task-enter ${task.completed ? 'opacity-60 grayscale hover:grayscale-0' : 'card-3d'} ${selectedTasks.includes(task.id) ? 'ring-4 ring-blue-500/50 shadow-xl' : ''}`} style={{ animationDelay: `${index * 0.05}s` }}>
                   <div className="mt-1 flex gap-3 items-center">
                     <input type="checkbox" checked={selectedTasks.includes(task.id)} onChange={() => toggleSelectTask(task.id)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
                     <label className="checkbox-custom flex items-center cursor-pointer">
@@ -253,13 +253,13 @@ export default function Tasks() {
                   </div>
 
                   <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-2 ml-auto mt-2 sm:mt-0">
-                    <button className="p-2 text-gray-500 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20" onClick={() => handleOpenModal(task)}>
+                    <button type="button" className="p-2 text-gray-500 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenModal(task); }} onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       <Edit2 size={16} />
                     </button>
-                    <button className="p-2 text-gray-500 hover:text-green-500 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20" onClick={() => handleDuplicate(task)}>
+                    <button type="button" className="p-2 text-gray-500 hover:text-green-500 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDuplicate(task); }} onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       <Copy size={16} />
                     </button>
-                    <button className="p-2 text-gray-500 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => handleDeleteClick(task)}>
+                    <button type="button" className="p-2 text-gray-500 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteClick(task); }} onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -331,6 +331,7 @@ export default function Tasks() {
     </div>
   );
 }
+
 
 
 
