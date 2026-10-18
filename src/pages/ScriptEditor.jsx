@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useScripts } from "../store/useStore";
-import { useIdeas } from "../store/useStore";
-import { 
-  ChevronLeft, Save, Trash2, Clock, 
-  Play, Camera, FileText
+import { useScripts, useIdeas } from "../store/useStore";
+import ConfirmDialog from '../components/ConfirmDialog';
+import {
+  ChevronLeft, Save, Trash2,
+  Play, Camera
 } from 'lucide-react';
+
+const FIELDS = ['title', 'platform', 'status', 'ideaId', 'hook', 'content', 'cta', 'notes'];
 import { formatDistanceToNow } from 'date-fns';
 
 export default function ScriptEditor() {
@@ -13,9 +15,9 @@ export default function ScriptEditor() {
   const navigate = useNavigate();
   const { scripts, updateScript, deleteScript } = useScripts();
   const { ideas } = useIdeas();
-  
+
   const script = scripts.find(s => s.id === id);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     platform: 'youtube',
@@ -26,12 +28,21 @@ export default function ScriptEditor() {
     cta: '',
     notes: ''
   });
-  
+
   const [saveStatus, setSaveStatus] = useState('saved'); // 'saved', 'saving', 'error'
   const [lastSaved, setLastSaved] = useState(null);
-  
+
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const debounceTimerRef = useRef(null);
   const isFirstRender = useRef(true);
+  // Latest values for the save logic, so the autosave effect only re-runs when the form changes
+  const scriptRef = useRef(script);
+  const updateScriptRef = useRef(updateScript);
+  const pendingRef = useRef(null);
+  useEffect(() => {
+    scriptRef.current = script;
+    updateScriptRef.current = updateScript;
+  });
 
   // Initialize form data
   useEffect(() => {
@@ -51,19 +62,22 @@ export default function ScriptEditor() {
     }
   }, [script]);
 
-  // Handle auto-save
+  // Auto-save 500ms after the user stops typing.
+  // It used to depend on `script` too: every save changed `script`, which triggered another
+  // save, forever (a write to storage twice a second while the editor was open).
   useEffect(() => {
-    if (isFirstRender.current || !script) return;
+    const current = scriptRef.current;
+    if (isFirstRender.current || !current) return;
+    const changed = FIELDS.some(k => (formData[k] || '') !== (current[k] || ''));
+    if (!changed) return;
 
     setSaveStatus('saving');
-    
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
+    pendingRef.current = formData;
+    clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => {
       try {
-        updateScript(id, formData);
+        updateScriptRef.current(id, formData);
+        pendingRef.current = null;
         setSaveStatus('saved');
         setLastSaved(new Date());
       } catch (error) {
@@ -72,10 +86,13 @@ export default function ScriptEditor() {
       }
     }, 500);
 
-    return () => {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    };
-  }, [formData, id, updateScript, script]);
+    return () => clearTimeout(debounceTimerRef.current);
+  }, [formData, id]);
+
+  // Leaving the page within 500ms of typing: save what's pending instead of dropping it
+  useEffect(() => () => {
+    if (pendingRef.current) updateScriptRef.current(id, pendingRef.current);
+  }, [id]);
 
   if (!script) {
     return (
@@ -89,10 +106,9 @@ export default function ScriptEditor() {
   }
 
   const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this script? This action cannot be undone.')) {
-      deleteScript(id);
-      navigate('/scripts');
-    }
+    pendingRef.current = null;
+    deleteScript(id);
+    navigate('/scripts');
   };
 
   const handleTextareaHeight = (e) => {
@@ -101,12 +117,12 @@ export default function ScriptEditor() {
   };
 
   return (
-    <div className="script-editor-container fade-in max-w-5xl mx-auto pb-24">
-      {/* Top Bar */}
-      <div className="sticky top-0 z-10 bg-white/80 dark:bg-[#0f0f0f]/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 py-4 mb-8 -mx-6 px-6 sm:-mx-8 sm:px-8">
+    <div className="script-editor-container fade-in max-w-5xl mx-auto">
+      {/* Top Bar (sticks just below the app's top navigation) */}
+      <div className="sticky top-[var(--nav-h)] z-30 bg-[var(--bg-nav)] backdrop-blur-md border-b border-[var(--border)] py-3 mb-8 -mx-4 px-4 md:-mx-8 md:px-8 -mt-4 md:-mt-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => navigate('/scripts')}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500"
             >
@@ -122,17 +138,17 @@ export default function ScriptEditor() {
               {saveStatus === 'error' && <span className="text-red-500">Error saving!</span>}
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <button 
-              onClick={handleDelete}
+            <button
+              onClick={() => setConfirmDelete(true)}
               className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               title="Delete Script"
             >
               <Trash2 size={20} />
             </button>
-            <button 
-              onClick={() => { updateScript(id, formData); setSaveStatus('saved'); setLastSaved(new Date()); }}
+            <button
+              onClick={() => { clearTimeout(debounceTimerRef.current); pendingRef.current = null; updateScript(id, formData); setSaveStatus('saved'); setLastSaved(new Date()); }}
               className="px-4 py-2 rounded-lg font-medium bg-black text-white dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors text-sm"
             >
               Save Now
@@ -148,28 +164,28 @@ export default function ScriptEditor() {
           value={formData.title}
           onChange={(e) => setFormData({...formData, title: e.target.value})}
           placeholder="Script Title..."
-          className="text-4xl font-bold bg-transparent w-full outline-none mb-6 text-black dark:text-white placeholder-gray-300 dark:placeholder-gray-700"
+          className="text-3xl md:text-4xl font-bold bg-transparent w-full outline-none mb-6 text-black dark:text-white placeholder-gray-300 dark:placeholder-gray-700"
         />
-        
+
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex items-center bg-gray-50 dark:bg-[#1a1a1a] rounded-lg p-1 border border-gray-200 dark:border-gray-800">
-            <button 
+            <button
               className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-all ${formData.platform === 'youtube' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}
               onClick={() => setFormData({...formData, platform: 'youtube'})}
             >
               <Play size={16} className={formData.platform === 'youtube' ? 'text-red-600' : ''} />
               YouTube
             </button>
-            <button 
+            <button
               className={`px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-all ${formData.platform === 'instagram' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-500'}`}
               onClick={() => setFormData({...formData, platform: 'instagram'})}
             >
               <Camera size={16} className={formData.platform === 'instagram' ? 'text-pink-600' : ''} />
-              Camera
+              Instagram
             </button>
           </div>
 
-          <select 
+          <select
             value={formData.status}
             onChange={(e) => setFormData({...formData, status: e.target.value})}
             className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] outline-none"
@@ -178,11 +194,11 @@ export default function ScriptEditor() {
             <option value="in-progress">In Progress</option>
             <option value="completed">Completed</option>
           </select>
-          
-          <select 
+
+          <select
             value={formData.ideaId || ''}
             onChange={(e) => setFormData({...formData, ideaId: e.target.value})}
-            className="px-4 py-2 rounded-lg text-sm border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] outline-none flex-grow max-w-xs"
+            className="px-4 py-2 rounded-lg text-sm border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1a1a1a] outline-none flex-grow min-w-0 max-w-xs"
           >
             <option value="">Link to an Idea...</option>
             {ideas.map(idea => (
@@ -251,6 +267,14 @@ export default function ScriptEditor() {
           />
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDelete}
+        title="Delete script?"
+        message="This action cannot be undone."
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import store from './dataStore';
 
 const StoreContext = createContext(null);
@@ -7,11 +7,17 @@ export function StoreProvider({ children }) {
   const [data, setData] = useState(store.getData());
 
   useEffect(() => {
-    const unsubscribe = store.subscribe((newData) => {
-      setData({ ...newData });
-    });
+    // The store replaces collections immutably, so the new object can be used as-is
+    const unsubscribe = store.subscribe(setData);
     return unsubscribe;
   }, []);
+
+  // Apply the theme setting to the page (CSS tokens and Tailwind `dark:` key off data-theme)
+  const theme = data.settings.theme === 'dark' ? 'dark' : 'light';
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#0b0b0d' : '#fbfbfd');
+  }, [theme]);
 
   return (
     <StoreContext.Provider value={{ data, store }}>
@@ -31,12 +37,15 @@ export function useTasks() {
   const { data, store: s } = useStore();
   return {
     tasks: data.tasks,
+    categories: data.categories,
     todayTasks: s.getTodayTasks(),
     addTask: (t) => s.addTask(t),
     updateTask: (id, u) => s.updateTask(id, u),
     toggleTask: (id) => s.toggleTask(id),
     deleteTask: (id) => s.deleteTask(id),
+    deleteTasks: (ids) => s.deleteTasks(ids),
     duplicateTask: (id) => s.duplicateTask(id),
+    getCompletionsByDate: (start, end) => s.getCompletionsByDate(start, end),
   };
 }
 
@@ -102,7 +111,7 @@ export function useSettings() {
     addCategory: (c) => s.addCategory(c),
     deleteCategory: (id) => s.deleteCategory(id),
     clearData: () => s.resetAll(),
-    addSampleData: () => { /* Not implemented natively in store, ignoring or calling reset */ }
+    addSampleData: () => s.loadSampleData(),
   };
 }
 

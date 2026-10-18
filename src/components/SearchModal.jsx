@@ -5,7 +5,7 @@ import { useStore } from '../store/useStore';
 
 export default function SearchModal({ onClose }) {
   const [query, setQuery] = useState('');
-  const { data, store } = useStore();
+  const { store } = useStore();
   const navigate = useNavigate();
   const inputRef = useRef();
 
@@ -49,7 +49,7 @@ export default function SearchModal({ onClose }) {
   return (
     <div className="fixed inset-0 z-[120] flex items-start justify-center pt-24 pb-4 px-4 bg-black/60 backdrop-blur-md animate-fade-in" onClick={onClose}>
       <div className="bg-white dark:bg-[#121212] rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800" onClick={e => e.stopPropagation()}>
-        
+
         {/* Search Input Area */}
         <div className="flex items-center p-6 border-b border-gray-100 dark:border-gray-800">
           <Search size={28} className="text-gray-400 mr-4" />
@@ -64,7 +64,7 @@ export default function SearchModal({ onClose }) {
             <X size={20} />
           </button>
         </div>
-        
+
         {/* Search Results Area */}
         <div className="max-h-[60vh] overflow-y-auto p-4 bg-gray-50 dark:bg-[#151515]">
           {query.length >= 2 && !hasResults && (
@@ -77,7 +77,7 @@ export default function SearchModal({ onClose }) {
               Type at least 2 characters to search your entire workspace
             </div>
           )}
-          
+
           {Object.entries(results).map(([type, items]) => {
             if (items.length === 0) return null;
             const Icon = icons[type];
@@ -94,7 +94,7 @@ export default function SearchModal({ onClose }) {
                       <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
                         <Icon size={18} />
                       </div>
-                      <span className="font-bold text-lg text-gray-800 dark:text-gray-200">{item.title || item.name}</span>
+                      <span className="font-bold text-lg text-gray-800 dark:text-gray-200 truncate">{item.title || item.name || 'Untitled'}</span>
                     </div>
                   ))}
                 </div>

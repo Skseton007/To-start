@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useNotebooks } from '../store/useStore';
-import { 
-  ArrowLeft, Plus, MoreVertical, Trash2, Edit2, 
-  Search, FileText, Clock, FilePlus, Save 
+import {
+  ArrowLeft, Plus, Trash2,
+  Search, FileText, Clock, FilePlus, Save
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import RichTextEditor from '../components/RichTextEditor';
@@ -11,19 +11,18 @@ import RichTextEditor from '../components/RichTextEditor';
 export default function NotebookDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
-  const { 
-    notebooks, 
-    notes, 
-    getNotebookNotes, 
-    addNote, 
-    updateNote, 
-    deleteNote 
+
+  const {
+    notebooks,
+    notes,
+    addNote,
+    updateNote,
+    deleteNote
   } = useNotebooks();
-  
+
   const notebook = useMemo(() => notebooks.find(n => n.id === id), [notebooks, id]);
-  const notebookNotes = useMemo(() => getNotebookNotes(id), [notes, id, getNotebookNotes]);
-  
+  const notebookNotes = useMemo(() => notes.filter(n => n.notebookId === id), [notes, id]);
+
   const [selectedNoteId, setSelectedNoteId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
@@ -32,20 +31,22 @@ export default function NotebookDetail() {
   // Note editing state
   const [editingTitle, setEditingTitle] = useState(false);
   const [noteTitle, setNoteTitle] = useState('');
-  
-  const selectedNote = useMemo(() => 
-    notebookNotes.find(n => n.id === selectedNoteId), 
+
+  const selectedNote = useMemo(() =>
+    notebookNotes.find(n => n.id === selectedNoteId),
   [notebookNotes, selectedNoteId]);
 
   const filteredNotes = useMemo(() => {
-    if (!searchQuery.trim()) return notebookNotes.sort((a, b) => b.updatedAt - a.updatedAt);
+    // updatedAt is an ISO string, so compare as text (subtracting strings gave NaN = no sorting)
+    const newestFirst = (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '');
+    if (!searchQuery.trim()) return [...notebookNotes].sort(newestFirst);
     const q = searchQuery.toLowerCase();
     return notebookNotes
-      .filter(n => 
-        n.title.toLowerCase().includes(q) || 
+      .filter(n =>
+        (n.title || '').toLowerCase().includes(q) ||
         (n.content && n.content.replace(/<[^>]*>?/gm, '').toLowerCase().includes(q))
       )
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+      .sort(newestFirst);
   }, [notebookNotes, searchQuery]);
 
   useEffect(() => {
@@ -61,11 +62,13 @@ export default function NotebookDetail() {
   }, [selectedNoteId, selectedNote]);
 
   const handleCreateNote = () => {
-    const newNoteId = addNote(id, {
+    const newNote = addNote({
+      notebookId: id,
       title: 'Untitled Note',
       content: ''
     });
-    setSelectedNoteId(newNoteId);
+    setSelectedNoteId(newNote.id);
+    setNoteTitle(newNote.title);
     setEditingTitle(true);
     if (window.innerWidth < 768) {
       setIsMobileListVisible(false);
@@ -106,19 +109,20 @@ export default function NotebookDetail() {
   const stripHtml = (html) => {
     if (!html) return 'No content';
     const tmp = document.createElement('DIV');
-    tmp.innerHTML = html;
+    // Put a space before each block tag so "<li>A</li><li>B</li>" reads "A B", not "AB"
+    tmp.innerHTML = html.replace(/<(\/?)(p|h[1-6]|li|div|br|blockquote)\b/gi, ' <$1$2');
     const text = tmp.textContent || tmp.innerText || '';
-    return text.trim() || 'No content';
+    return text.replace(/\s+/g, ' ').trim() || 'No content';
   };
 
   if (!notebook) return null;
 
   return (
-    <div className="page-container flex flex-col h-full bg-gray-50 dark:bg-dark-bg fade-in">
+    <div className="page-container flex flex-col h-[calc(100dvh-var(--nav-h)-8rem)] md:h-[calc(100dvh-var(--nav-h)-4.5rem)] min-h-[420px] rounded-2xl overflow-hidden border border-[var(--border)] bg-gray-50 dark:bg-dark-bg fade-in">
       {/* Header */}
       <header className="bg-white dark:bg-dark-card border-b border-gray-200 dark:border-dark-border shrink-0 z-10 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center">
-          <button 
+          <button
             onClick={() => {
               if (!isMobileListVisible && window.innerWidth < 768) {
                 setIsMobileListVisible(true);
@@ -130,9 +134,9 @@ export default function NotebookDetail() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          
+
           <div className="flex items-center">
-            <div 
+            <div
               className="w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3 shadow-sm"
               style={{ backgroundColor: notebook.color }}
             >
@@ -145,9 +149,9 @@ export default function NotebookDetail() {
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2">
-          <button 
+          <button
             className="btn-primary py-1.5 px-3 text-sm flex items-center"
             onClick={handleCreateNote}
           >
@@ -159,9 +163,9 @@ export default function NotebookDetail() {
 
       {/* Main Content - Split View */}
       <div className="flex-1 flex overflow-hidden relative">
-        
+
         {/* Left Side: Note List */}
-        <div 
+        <div
           className={`
             w-full md:w-80 lg:w-96 shrink-0 flex flex-col bg-white dark:bg-dark-card border-r border-gray-200 dark:border-dark-border
             transition-transform duration-300 ease-in-out absolute md:relative z-10 h-full
@@ -180,7 +184,7 @@ export default function NotebookDetail() {
               />
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto">
             {filteredNotes.length === 0 ? (
               <div className="p-8 text-center text-gray-500 dark:text-gray-400">
@@ -189,7 +193,7 @@ export default function NotebookDetail() {
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-dark-border/50">
                 {filteredNotes.map(note => (
-                  <div 
+                  <div
                     key={note.id}
                     className={`
                       p-4 cursor-pointer transition-colors group relative
@@ -202,17 +206,17 @@ export default function NotebookDetail() {
                       }
                     }}
                   >
-                    <div 
+                    <div
                       className={`absolute left-0 top-0 bottom-0 w-1 rounded-r-full transition-opacity ${selectedNoteId === note.id ? 'opacity-100' : 'opacity-0'}`}
                       style={{ backgroundColor: notebook.color }}
                     />
-                    
+
                     <div className="flex justify-between items-start mb-1">
                       <h3 className={`font-medium line-clamp-1 pr-6 ${selectedNoteId === note.id ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
                         {note.title}
                       </h3>
-                      
-                      <button 
+
+                      <button
                         className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all rounded"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -222,11 +226,11 @@ export default function NotebookDetail() {
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    
+
                     <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-2 min-h-[2rem]">
                       {stripHtml(note.content)}
                     </p>
-                    
+
                     <div className="flex items-center text-[10px] text-gray-400 dark:text-gray-500">
                       <Clock className="w-3 h-3 mr-1" />
                       {formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}
@@ -255,7 +259,7 @@ export default function NotebookDetail() {
                     <Save className="w-3 h-3 mr-1" /> Auto-saved
                   </span>
                 </div>
-                
+
                 {editingTitle ? (
                   <input
                     type="text"
@@ -267,7 +271,7 @@ export default function NotebookDetail() {
                     autoFocus
                   />
                 ) : (
-                  <h2 
+                  <h2
                     className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white cursor-text hover:bg-gray-50 dark:hover:bg-dark-hover rounded inline-block w-full transition-colors"
                     onClick={() => setEditingTitle(true)}
                   >
@@ -275,11 +279,12 @@ export default function NotebookDetail() {
                   </h2>
                 )}
               </div>
-              
+
               <div className="flex-1 overflow-hidden">
-                <RichTextEditor 
-                  value={selectedNote.content} 
-                  onChange={handleNoteContentChange} 
+                <RichTextEditor
+                  key={selectedNote.id}
+                  value={selectedNote.content}
+                  onChange={handleNoteContentChange}
                   placeholder="Start writing..."
                 />
               </div>
@@ -295,8 +300,8 @@ export default function NotebookDetail() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white dark:bg-dark-card w-full max-w-sm rounded-2xl shadow-xl border border-gray-200 dark:border-dark-border p-6 animate-scale-in">
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowDeleteConfirm(null)}>
+          <div className="bg-white dark:bg-dark-card w-full max-w-sm rounded-2xl shadow-xl border border-gray-200 dark:border-dark-border p-6 animate-scale-in" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Delete Note?</h3>
             <p className="text-gray-500 dark:text-gray-400 mb-6">
               Are you sure you want to delete this note? This action cannot be undone.

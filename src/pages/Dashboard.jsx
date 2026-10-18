@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTasks, useIdeas, useVideos, useSettings } from '../store/useStore';
+import { useTasks, useIdeas, useVideos } from '../store/useStore';
 import { Activity, Target, Video, Plus, CheckCircle2, PlayCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -29,14 +29,14 @@ export default function Dashboard() {
   const { todayTasks, toggleTask } = useTasks();
   const { ideas } = useIdeas();
   const { videos } = useVideos();
-  const { settings } = useSettings();
-  
+
   const completed = todayTasks.filter(t => t.completed).length;
   const progress = todayTasks.length ? Math.round((completed / todayTasks.length) * 100) : 0;
-  
+
   const pendingIdeas = ideas.filter(i => i.status === 'new' || i.status === 'planning').length;
   const inPipeline = videos.filter(v => v.status !== 'published').length;
 
+  const upNext = todayTasks.filter(t => !t.completed);
   const [currentQuote, setCurrentQuote] = useState(PHILOSOPHY_QUOTES[0]);
 
   useEffect(() => {
@@ -45,17 +45,17 @@ export default function Dashboard() {
       const index = Math.floor(Date.now() / (1000 * 60 * 60 * 3)) % PHILOSOPHY_QUOTES.length;
       setCurrentQuote(PHILOSOPHY_QUOTES[index]);
     };
-    
+
     updateQuote();
     // Check every minute if we crossed a 3-hour boundary
-    const interval = setInterval(updateQuote, 60000); 
+    const interval = setInterval(updateQuote, 60000);
     return () => clearInterval(interval);
   }, []);
 
   return (
     <div className="dashboard-page">
       <div className="hero-section">
-        <h1 className="hero-title" style={{ maxWidth: '900px', lineHeight: '1.2' }}>
+        <h1 key={currentQuote.text} className="hero-title animate-fade-in">
           "{currentQuote.text}"<br/>
           <span className="serif-italic" style={{ fontSize: '0.65em', color: 'var(--text-secondary)', display: 'inline-block', marginTop: '12px' }}>
             — {currentQuote.author}
@@ -66,8 +66,8 @@ export default function Dashboard() {
         </p>
 
         <div className="hero-actions">
-          <button className="btn-dark cursor-pointer hover:scale-105 transition-all" onClick={() => navigate('/today')}>Get started &rarr;</button>
-          <button className="btn-outline cursor-pointer hover:scale-105 transition-all" onClick={() => navigate('/content')}><PlayCircle className="w-5 h-5"/> Content Engine</button>
+          <button className="btn-dark" onClick={() => navigate('/today')}>Get started &rarr;</button>
+          <button className="btn-outline" onClick={() => navigate('/content')}><PlayCircle className="w-5 h-5"/> Content Engine</button>
         </div>
 
         <div className="hero-3d-scene">
@@ -75,54 +75,62 @@ export default function Dashboard() {
             <img src={import.meta.env.BASE_URL + 'user-photo.jpg'} alt="User" className="center-portrait" />
           </div>
 
-          <div className="glass-card float-1 cursor-pointer hover:scale-110 transition-transform" onClick={() => navigate('/today')}>
-            <div className="flex items-center gap-3">
+          {/* Outer .float-wrap owns the floating animation; inner .glass-card owns hover/press,
+              so the two transforms never fight */}
+          <div className="float-wrap float-1">
+            <div className="glass-card is-clickable" role="button" tabIndex={0} onClick={() => navigate('/today')} onKeyDown={(e) => e.key === 'Enter' && navigate('/today')}>
               <div className="icon-wrapper bg-green"><Target size={16}/></div>
+              <h4>Today's Focus</h4>
+              <div className="progress-track mt-3">
+                <div className="progress-fill" style={{width: `${progress}%`}}></div>
+              </div>
+              <p className="mt-2 text-right text-xs font-bold">{completed} / {todayTasks.length} DONE</p>
             </div>
-            <h4>Today's Focus</h4>
-            <div className="progress-track mt-3">
-               <div className="progress-fill" style={{width: `${progress}%`}}></div>
-            </div>
-            <p className="mt-2 text-right text-xs font-bold">{completed} / {todayTasks.length} DONE</p>
           </div>
 
-          <div className="glass-card float-2">
-            <div className="flex items-center gap-3">
+          <div className="float-wrap float-2">
+            <div className="glass-card">
               <div className="icon-wrapper bg-gray"><Activity size={16}/></div>
-            </div>
-            <h4>Capture</h4>
-            <p>Turn thoughts into progress.</p>
-            <div className="flex gap-2 mt-3">
-               <button className="btn-mini cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700" onClick={(e) => { e.stopPropagation(); navigate('/today'); }}><Plus size={14}/> Task</button>
-               <button className="btn-mini cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700" onClick={(e) => { e.stopPropagation(); navigate('/ideas'); }}><Plus size={14}/> Idea</button>
+              <h4>Capture</h4>
+              <p>Turn thoughts into progress.</p>
+              <div className="flex gap-2 mt-3">
+                <button className="btn-mini" onClick={() => navigate('/today')}><Plus size={14}/> Task</button>
+                <button className="btn-mini" onClick={() => navigate('/ideas')}><Plus size={14}/> Idea</button>
+              </div>
             </div>
           </div>
 
-          <div className="glass-card float-3 task-preview-card cursor-pointer hover:scale-110 transition-transform" onClick={() => navigate('/tasks')}>
-            <div className="flex items-center gap-3">
+          <div className="float-wrap float-3">
+            <div className="glass-card is-clickable task-preview-card" role="button" tabIndex={0} onClick={() => navigate('/tasks')} onKeyDown={(e) => e.key === 'Enter' && navigate('/tasks')}>
               <div className="icon-wrapper bg-orange"><CheckCircle2 size={16}/></div>
-            </div>
-            <h4>Up Next</h4>
-            <div className="mini-task-list">
-              {todayTasks.filter(t => !t.completed).slice(0,3).map(task => (
-                <div key={task.id} className="mini-task hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors p-1 rounded cursor-pointer" onClick={(e) => { e.stopPropagation(); toggleTask(task.id); }}>
-                  <div className="mini-checkbox cursor-pointer"></div>
-                  <span className="truncate" style={{maxWidth:'150px'}}>{task.title}</span>
-                </div>
-              ))}
-              {todayTasks.filter(t => !t.completed).length === 0 && (
-                <p className="text-xs text-muted mt-2">All caught up!</p>
-              )}
+              <h4>Up Next</h4>
+              <div className="mini-task-list">
+                {upNext.slice(0, 3).map(task => (
+                  <button
+                    key={task.id}
+                    type="button"
+                    className="mini-task text-left hover:bg-[var(--bg-hover)] active:scale-[0.97] transition p-1 rounded"
+                    title="Mark as done"
+                    onClick={(e) => { e.stopPropagation(); toggleTask(task.id); }}
+                  >
+                    <span className="mini-checkbox"></span>
+                    <span className="truncate" style={{maxWidth:'170px'}}>{task.title}</span>
+                  </button>
+                ))}
+                {upNext.length === 0 && (
+                  <p className="text-xs mt-2">All caught up!</p>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="glass-card float-4 cursor-pointer hover:scale-110 transition-transform" onClick={() => navigate('/content')}>
-            <div className="flex items-center gap-3">
+          <div className="float-wrap float-4">
+            <div className="glass-card is-clickable" role="button" tabIndex={0} onClick={() => navigate('/content')} onKeyDown={(e) => e.key === 'Enter' && navigate('/content')}>
               <div className="icon-wrapper bg-purple"><Video size={16}/></div>
+              <h4>Content Engine</h4>
+              <p className="mt-2"><b>{pendingIdeas}</b> ideas pending.</p>
+              <p><b>{inPipeline}</b> videos in pipeline.</p>
             </div>
-            <h4>Content Engine</h4>
-            <p className="mt-2"><b>{pendingIdeas}</b> ideas pending.</p>
-            <p><b>{inPipeline}</b> videos in pipeline.</p>
           </div>
         </div>
       </div>

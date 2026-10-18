@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotebooks } from '../store/useStore';
 import {
   Book, Bookmark, Lightbulb, Star, Heart, Code, Music, Camera,
   Film, Globe, Coffee, Zap, Target, Compass, Feather, PenTool,
-  Plus, Search, Edit3, Trash2, MoreVertical, X, MoreHorizontal, FileText
+  Plus, Search, Edit3, Trash2, X, MoreHorizontal, FileText
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -22,13 +22,22 @@ const ICONS = {
 
 export default function Notebooks() {
   const navigate = useNavigate();
-  const { notebooks, addNotebook, updateNotebook, deleteNotebook, getNotebookNotes } = useNotebooks();
-  
+  const { notebooks, notes, addNotebook, updateNotebook, deleteNotebook } = useNotebooks();
+  const [openMenuId, setOpenMenuId] = useState(null);
+
+  // Close the card menu on any outside click
+  useEffect(() => {
+    if (!openMenuId) return;
+    const close = () => setOpenMenuId(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openMenuId]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNotebook, setEditingNotebook] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
-  
+
   // Modal state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -38,8 +47,8 @@ export default function Notebooks() {
   const filteredNotebooks = useMemo(() => {
     if (!searchQuery.trim()) return notebooks;
     const q = searchQuery.toLowerCase();
-    return notebooks.filter(nb => 
-      nb.name.toLowerCase().includes(q) || 
+    return notebooks.filter(nb =>
+      nb.name.toLowerCase().includes(q) ||
       (nb.description && nb.description.toLowerCase().includes(q))
     );
   }, [notebooks, searchQuery]);
@@ -84,16 +93,16 @@ export default function Notebooks() {
   };
 
   return (
-    <div className="page-container p-6 pb-24 md:pb-6 fade-in h-full overflow-y-auto">
+    <div className="page-container fade-in">
       <div className="max-w-7xl mx-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Notebooks</h1>
             <p className="text-gray-500 dark:text-gray-400 mt-1">Organize your thoughts and notes</p>
           </div>
-          
+
           <div className="flex items-center gap-3">
-            <div className="relative flex-1 md:w-64">
+            <div className="relative flex-1 min-w-0 md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
@@ -104,8 +113,8 @@ export default function Notebooks() {
               />
             </div>
             <button className="btn-primary py-2 px-4 whitespace-nowrap" onClick={() => openModal()}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Notebook
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">New Notebook</span>
             </button>
           </div>
         </header>
@@ -121,7 +130,7 @@ export default function Notebooks() {
             </p>
             {!searchQuery && (
               <button className="btn-primary" onClick={() => openModal()}>
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-4 h-4" />
                 Create Notebook
               </button>
             )}
@@ -130,68 +139,66 @@ export default function Notebooks() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredNotebooks.map(notebook => {
               const IconComponent = ICONS[notebook.icon] || Book;
-              const noteCount = getNotebookNotes(notebook.id).length;
-              
+              const noteCount = notes.filter(n => n.notebookId === notebook.id).length;
+
               return (
-                <div 
+                <div
                   key={notebook.id}
-                  className="notebook-card bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-xl p-5 relative group cursor-pointer transition-all hover:shadow-lg dark:hover:shadow-none hover:-translate-y-1 flex flex-col h-full"
+                  className={`notebook-card card-3d bg-white dark:bg-dark-card rounded-xl p-5 relative group cursor-pointer transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] flex flex-col h-full ${openMenuId === notebook.id ? 'z-20' : ''}`}
                   style={{ '--notebook-color': notebook.color || COLORS[5] }}
                   onClick={() => navigate(`/notebooks/${notebook.id}`)}
                 >
                   <div className="absolute top-0 left-0 right-0 h-1 rounded-t-xl" style={{ backgroundColor: notebook.color || COLORS[5] }} />
-                  
+
                   <div className="flex justify-between items-start mb-4 mt-2">
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-sm" style={{ backgroundColor: notebook.color || COLORS[5] }}>
                       <IconComponent className="w-5 h-5" />
                     </div>
-                    
+
                     <div className="relative" onClick={e => e.stopPropagation()}>
-                      <button 
+                      <button
                         className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors"
+                        aria-label="Notebook actions"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // In a real app this would be a dropdown menu, for simplicity here it's inline
-                          const isActionMenuOpen = document.getElementById(`actions-${notebook.id}`)?.classList.contains('hidden');
-                          document.querySelectorAll('.action-menu').forEach(el => el.classList.add('hidden'));
-                          if (isActionMenuOpen) {
-                            document.getElementById(`actions-${notebook.id}`)?.classList.remove('hidden');
-                          }
+                          setOpenMenuId(id => (id === notebook.id ? null : notebook.id));
                         }}
                       >
                         <MoreHorizontal className="w-5 h-5" />
                       </button>
-                      
-                      <div id={`actions-${notebook.id}`} className="action-menu hidden absolute right-0 top-full mt-1 w-36 bg-white dark:bg-dark-card border border-gray-200 dark:border-dark-border rounded-lg shadow-lg z-10 py-1">
-                        <button 
+
+                      {openMenuId === notebook.id && (
+                      <div className="more-menu w-36 min-w-0 py-1">
+                        <button
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-hover flex items-center"
                           onClick={(e) => {
                             e.stopPropagation();
-                            document.getElementById(`actions-${notebook.id}`)?.classList.add('hidden');
+                            setOpenMenuId(null);
                             openModal(notebook);
                           }}
                         >
                           <Edit3 className="w-4 h-4 mr-2" /> Edit
                         </button>
-                        <button 
+                        <button
                           className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
                           onClick={(e) => {
                             e.stopPropagation();
-                            document.getElementById(`actions-${notebook.id}`)?.classList.add('hidden');
+                            setOpenMenuId(null);
                             setShowDeleteConfirm(notebook.id);
                           }}
                         >
                           <Trash2 className="w-4 h-4 mr-2" /> Delete
                         </button>
                       </div>
+                      )}
                     </div>
                   </div>
-                  
+
                   <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-1 line-clamp-1">{notebook.name}</h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-4 flex-grow">
                     {notebook.description || 'No description'}
                   </p>
-                  
+
                   <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100 dark:border-dark-border">
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400 flex items-center">
                       <FileText className="w-3.5 h-3.5 mr-1" />
@@ -210,8 +217,8 @@ export default function Notebooks() {
 
       {/* Create/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-dark-card w-full max-w-md rounded-2xl shadow-xl border border-gray-200 dark:border-dark-border overflow-hidden transform animate-scale-in">
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={closeModal}>
+          <div onClick={e => e.stopPropagation()} className="bg-white dark:bg-dark-card w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl shadow-xl border border-gray-200 dark:border-dark-border overflow-hidden transform animate-scale-in">
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-dark-border">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {editingNotebook ? 'Edit Notebook' : 'Create Notebook'}
@@ -220,7 +227,7 @@ export default function Notebooks() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSave} className="p-5">
               <div className="space-y-4">
                 <div>
@@ -235,7 +242,7 @@ export default function Notebooks() {
                     autoFocus
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
                   <textarea
@@ -245,7 +252,7 @@ export default function Notebooks() {
                     onChange={(e) => setDescription(e.target.value)}
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Color</label>
                   <div className="grid grid-cols-6 gap-2">
@@ -260,7 +267,7 @@ export default function Notebooks() {
                     ))}
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Icon</label>
                   <div className="icon-picker grid grid-cols-8 gap-2">
@@ -277,7 +284,7 @@ export default function Notebooks() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-dark-border">
                 <button type="button" className="btn-secondary py-2 px-4" onClick={closeModal}>Cancel</button>
                 <button type="submit" className="btn-primary py-2 px-4" disabled={!name.trim()}>
@@ -291,8 +298,8 @@ export default function Notebooks() {
 
       {/* Delete Confirmation */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-dark-card w-full max-w-sm rounded-2xl shadow-xl border border-gray-200 dark:border-dark-border p-6 transform animate-scale-in">
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowDeleteConfirm(null)}>
+          <div onClick={e => e.stopPropagation()} className="bg-white dark:bg-dark-card w-full max-w-sm rounded-2xl shadow-xl border border-gray-200 dark:border-dark-border p-6 transform animate-scale-in">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Delete Notebook?</h3>
             <p className="text-gray-500 dark:text-gray-400 mb-6">
               Are you sure you want to delete this notebook? All notes inside it will also be deleted. This action cannot be undone.

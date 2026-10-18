@@ -1,31 +1,30 @@
 import React, { useState, useMemo } from 'react';
-import { useTasks, useSettings } from '../store/useStore';
+import { useTasks } from '../store/useStore';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
-import { Plus, Check, Clock, Edit2, Copy, Trash2, Calendar, Flag, Tag } from 'lucide-react';
+import { Plus, Check, Clock, Edit2, Copy, Trash2, Calendar, Flag, Tag, Repeat } from 'lucide-react';
 import { format, isToday, parseISO } from 'date-fns';
 
 export default function Today() {
-  const { tasks, addTask, updateTask, deleteTask, duplicateTask, categories } = useTasks();
-  const { settings } = useSettings();
+  const { tasks, addTask, updateTask, toggleTask, deleteTask, duplicateTask, categories } = useTasks();
   const toast = useToast();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-  const [taskForm, setTaskForm] = useState({ title: '', priority: 'medium', category: '', time: '', notes: '' });
-  
+  const [taskForm, setTaskForm] = useState({ title: '', priority: 'medium', category: '', time: '', notes: '', recurring: false });
+
   const [filter, setFilter] = useState('All');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
   const todayDateStr = format(new Date(), 'yyyy-MM-dd');
-  
+
   const todayTasks = useMemo(() => {
     return tasks.filter(task => {
       if (!task.date) return false;
       try {
         return isToday(parseISO(task.date));
-      } catch (e) {
+      } catch {
         return false;
       }
     });
@@ -35,7 +34,7 @@ export default function Today() {
     let filtered = todayTasks;
     if (filter === 'Pending') filtered = filtered.filter(t => !t.completed);
     if (filter === 'Completed') filtered = filtered.filter(t => t.completed);
-    return filtered.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    return [...filtered].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
   }, [todayTasks, filter]);
 
   const completedCount = todayTasks.filter(t => t.completed).length;
@@ -50,11 +49,12 @@ export default function Today() {
         priority: task.priority || 'medium',
         category: task.category || '',
         time: task.time || '',
-        notes: task.notes || ''
+        notes: task.notes || '',
+        recurring: !!task.recurring
       });
     } else {
       setEditingTask(null);
-      setTaskForm({ title: '', priority: 'medium', category: categories?.[0]?.id || '', time: '', notes: '' });
+      setTaskForm({ title: '', priority: 'medium', category: categories?.[0]?.id || '', time: '', notes: '', recurring: false });
     }
     setIsModalOpen(true);
   };
@@ -62,7 +62,7 @@ export default function Today() {
   const handleSaveTask = (e) => {
     e.preventDefault();
     if (!taskForm.title.trim()) return;
-    
+
     if (editingTask) {
       updateTask(editingTask.id, { ...taskForm });
       toast.success('Task updated');
@@ -74,7 +74,7 @@ export default function Today() {
   };
 
   const handleToggleComplete = (task) => {
-    updateTask(task.id, { completed: !task.completed });
+    toggleTask(task.id);
     if (!task.completed) {
       toast.success('Task completed!');
     }
@@ -100,7 +100,7 @@ export default function Today() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-page-enter pb-24">
+    <div className="max-w-[1400px] mx-auto space-y-6 md:space-y-8 animate-page-enter">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 dark:bg-gray-900/50 p-6 rounded-3xl card-3d">
         <div>
@@ -111,9 +111,9 @@ export default function Today() {
             <Calendar size={18} /> {format(new Date(), 'EEEE, MMMM d, yyyy')}
           </p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()} 
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-4 rounded-2xl hover:shadow-[0_10px_20px_rgba(59,130,246,0.4)] transition-all hover:-translate-y-1 font-bold text-lg"
+        <button
+          onClick={() => handleOpenModal()}
+          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-4 rounded-2xl hover:shadow-[0_10px_20px_rgba(59,130,246,0.4)] transition-all duration-300 hover:-translate-y-1 active:scale-95 font-bold text-lg"
         >
           <Plus size={24} /> Add Task
         </button>
@@ -133,9 +133,9 @@ export default function Today() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="flex gap-3 overflow-x-auto -mx-2 px-2 py-2 scrollbar-hide">
         {['All', 'Pending', 'Completed'].map(f => (
-          <button 
+          <button
             key={f}
             className={`px-6 py-3 rounded-2xl text-sm font-bold transition-all whitespace-nowrap ${filter === f ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-105' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:-translate-y-0.5 border border-transparent dark:border-gray-700 shadow-sm'}`}
             onClick={() => setFilter(f)}
@@ -144,7 +144,7 @@ export default function Today() {
           </button>
         ))}
       </div>
-      
+
       {/* Task List Placeholder */}
       <div className="task-list space-y-3">
         {filteredTasks.length === 0 ? (
@@ -163,7 +163,7 @@ export default function Today() {
                   </div>
                 </label>
               </div>
-              
+
               <div className="flex-1 min-w-0">
                 <h3 className={`font-black text-xl truncate transition-colors ${task.completed ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>{task.title}</h3>
                 <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-500">
@@ -173,6 +173,7 @@ export default function Today() {
                       <Flag size={10} /> {task.priority}
                     </span>
                   )}
+                  {task.recurring && <span className="flex items-center gap-1 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300 px-2 py-0.5 rounded-full"><Repeat size={10} /> Daily</span>}
                   {task.category && <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full"><Tag size={10} /> {categories?.find(c => c.id === task.category)?.name || task.category}</span>}
                 </div>
                 {task.notes && <p className="text-sm text-gray-500 mt-2 truncate">{task.notes}</p>}
@@ -196,8 +197,8 @@ export default function Today() {
 
       {/* Task Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsModalOpen(false)}>
+          <div className="bg-white dark:bg-dark-card border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-4">{editingTask ? 'Edit Task' : 'New Task'}</h2>
             <form onSubmit={handleSaveTask} className="space-y-4">
               <div>
@@ -229,6 +230,10 @@ export default function Today() {
                 <label className="block text-sm font-medium mb-1">Notes</label>
                 <textarea className="input w-full p-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700 h-24 resize-none" value={taskForm.notes} onChange={e => setTaskForm({...taskForm, notes: e.target.value})} />
               </div>
+              <label className="flex items-center gap-3 text-sm font-medium cursor-pointer select-none">
+                <input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={!!taskForm.recurring} onChange={e => setTaskForm({...taskForm, recurring: e.target.checked})} />
+                <Repeat size={16} className="text-indigo-500" /> Repeat daily (resets every morning)
+              </label>
               <div className="flex justify-end gap-3 mt-6">
                 <button type="button" className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setIsModalOpen(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary px-4 py-2 bg-black text-white rounded-lg dark:bg-white dark:text-black">{editingTask ? 'Save Changes' : 'Add Task'}</button>
@@ -239,12 +244,12 @@ export default function Today() {
       )}
 
       {/* Delete Confirm */}
-      <ConfirmDialog 
-        isOpen={deleteConfirmOpen} 
-        title="Delete Task" 
-        message={`Are you sure you want to delete "${taskToDelete?.title}"?`} 
-        onConfirm={confirmDelete} 
-        onCancel={() => setDeleteConfirmOpen(false)} 
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title="Delete Task"
+        message={`Are you sure you want to delete "${taskToDelete?.title}"?`}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirmOpen(false)}
       />
     </div>
   );

@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
-import { 
-  ChevronLeft, ChevronRight, Plus, 
+import {
+  ChevronLeft, ChevronRight, Plus, Check,
   Calendar as CalendarIcon, Video, CheckSquare
 } from 'lucide-react';
-import { 
-  format, startOfMonth, endOfMonth, eachDayOfInterval, 
-  startOfWeek, endOfWeek, isSameMonth, isSameDay, isToday, 
-  addMonths, subMonths 
+import {
+  format, startOfMonth, endOfMonth, eachDayOfInterval,
+  startOfWeek, endOfWeek, isSameMonth, isSameDay, isToday,
+  addMonths, subMonths
 } from 'date-fns';
 import { useTasks, useVideos } from "../store/useStore";
-import { v4 as uuidv4 } from 'uuid';
 
 export default function CalendarPage() {
-  const { tasks, addTask } = useTasks();
+  const { tasks, addTask, toggleTask } = useTasks();
   const { videos } = useVideos();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -31,9 +30,12 @@ export default function CalendarPage() {
 
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+  // Dates are stored as local 'yyyy-MM-dd', so compare strings.
+  // (new Date('yyyy-MM-dd') is UTC midnight and landed on the wrong day west of UTC.)
   const getEventsForDate = (date) => {
-    const dayTasks = tasks.filter(t => t.date && isSameDay(new Date(t.date), date));
-    const dayVideos = videos.filter(v => v.deadline && isSameDay(new Date(v.deadline), date));
+    const key = format(date, 'yyyy-MM-dd');
+    const dayTasks = tasks.filter(t => t.date === key);
+    const dayVideos = videos.filter(v => (v.deadline || '').slice(0, 10) === key);
     return { dayTasks, dayVideos };
   };
 
@@ -43,9 +45,7 @@ export default function CalendarPage() {
     e.preventDefault();
     if (!newTaskText.trim()) return;
     addTask({
-      id: uuidv4(),
-      title: newTaskText,
-      completed: false,
+      title: newTaskText.trim(),
       date: format(selectedDate, 'yyyy-MM-dd')
     });
     setNewTaskText('');
@@ -62,28 +62,34 @@ export default function CalendarPage() {
 
       <div className="calendar-container card">
         <div className="calendar-header">
-          <button className="icon-btn" onClick={prevMonth}><ChevronLeft /></button>
-          <h2>{format(currentDate, dateFormat)}</h2>
-          <button className="icon-btn" onClick={nextMonth}><ChevronRight /></button>
+          <button className="icon-btn" onClick={prevMonth} aria-label="Previous month"><ChevronLeft /></button>
+          <div className="flex items-center gap-3">
+            <h2>{format(currentDate, dateFormat)}</h2>
+            <button className="btn-mini" onClick={() => { setCurrentDate(new Date()); setSelectedDate(new Date()); }}>Today</button>
+          </div>
+          <button className="icon-btn" onClick={nextMonth} aria-label="Next month"><ChevronRight /></button>
         </div>
 
         <div className="calendar-grid">
           {weekDays.map(day => (
             <div key={day} className="calendar-header-cell">{day}</div>
           ))}
-          
+
           {days.map(day => {
             const { dayTasks, dayVideos } = getEventsForDate(day);
             const hasEvents = dayTasks.length > 0 || dayVideos.length > 0;
-            
+
             return (
-              <div 
+              <div
                 key={day.toString()}
-                className={`calendar-cell ${!isSameMonth(day, monthStart) ? 'disabled' : ''} 
-                  ${isToday(day) ? 'today' : ''} 
+                className={`calendar-cell ${!isSameMonth(day, monthStart) ? 'disabled' : ''}
+                  ${isToday(day) ? 'today' : ''}
                   ${isSameDay(day, selectedDate) ? 'selected' : ''}
                   ${hasEvents ? 'has-events' : ''}`}
-                onClick={() => setSelectedDate(day)}
+                onClick={() => {
+                  setSelectedDate(day);
+                  if (!isSameMonth(day, monthStart)) setCurrentDate(day);
+                }}
               >
                 <span className="day-number">{format(day, 'd')}</span>
                 {hasEvents && (
@@ -104,21 +110,21 @@ export default function CalendarPage() {
           Schedule for {format(selectedDate, 'MMMM d, yyyy')}
         </h3>
 
-        <div className="events-lists" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+        <div className="events-lists" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '24px' }}>
           <div className="tasks-section">
             <h4 style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CheckSquare size={16} /> Tasks
             </h4>
-            
+
             <form onSubmit={handleAddTask} style={{ marginBottom: '15px', display: 'flex', gap: '10px' }}>
-              <input 
-                type="text" 
-                className="input-field" 
+              <input
+                type="text"
+                className="input-field"
                 placeholder="Add new task..."
                 value={newTaskText}
                 onChange={e => setNewTaskText(e.target.value)}
               />
-              <button type="submit" className="btn-primary" style={{ padding: '8px' }}>
+              <button type="submit" className="btn-primary" style={{ padding: '8px 12px' }} aria-label="Add task">
                 <Plus size={20} />
               </button>
             </form>
@@ -128,8 +134,15 @@ export default function CalendarPage() {
             ) : (
               <ul className="task-list" style={{ listStyle: 'none', padding: 0 }}>
                 {selectedTasks.map(task => (
-                  <li key={task.id} className="task-item" style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '8px', marginBottom: '8px' }}>
-                    {task.title}
+                  <li key={task.id} className="task-item animate-task-enter" style={{ padding: '10px', background: 'var(--bg-secondary)', borderRadius: '10px', marginBottom: '8px' }}>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="hidden" checked={!!task.completed} onChange={() => toggleTask(task.id)} />
+                      <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${task.completed ? 'bg-[var(--inverse-bg)] border-[var(--inverse-bg)]' : 'border-[var(--border-strong)]'}`}>
+                        {task.completed && <Check size={12} className="text-[var(--inverse-text)]" />}
+                      </span>
+                      <span className={task.completed ? 'line-through text-[var(--text-muted)]' : ''}>{task.title}</span>
+                      {task.time && <span className="ml-auto text-xs text-[var(--text-muted)]">{task.time}</span>}
+                    </label>
                   </li>
                 ))}
               </ul>

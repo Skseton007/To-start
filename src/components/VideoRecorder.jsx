@@ -1,5 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Video, StopCircle, Camera, CameraOff, Play, FlipHorizontal } from 'lucide-react';
+import { useToast } from './Toast';
+
+// Safari/iPhone can't record WebM, so pick the first format this browser supports
+const pickVideoFormat = () => {
+  const options = [
+    { mimeType: 'video/webm;codecs=vp9,opus', ext: 'webm' },
+    { mimeType: 'video/webm;codecs=vp8,opus', ext: 'webm' },
+    { mimeType: 'video/webm', ext: 'webm' },
+    { mimeType: 'video/mp4', ext: 'mp4' },
+  ];
+  return options.find(o => MediaRecorder.isTypeSupported?.(o.mimeType)) || { mimeType: '', ext: 'webm' };
+};
 
 export default function VideoRecorder({ workspace, updateWorkspace }) {
   const [isMobile, setIsMobile] = useState(false);
@@ -13,11 +25,15 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
   const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  // Device id the running camera was opened with, so we only restart on a real change
+  const activeDeviceRef = useRef('');
+  const toast = useToast();
 
   useEffect(() => {
     setIsMobile(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
     return () => {
-      // Cleanup on unmount
+      // Cleanup on unmount: finish (and save) a running recording, then release the camera
+      if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(t => t.stop());
       }
@@ -36,13 +52,14 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
     if (isRecording) stopRecording();
   };
 
-  const startCamera = async () => {
+  const startCamera = async (deviceId = selectedDevice) => {
     try {
       const s = await navigator.mediaDevices.getUserMedia({
-        video: selectedDevice ? { deviceId: { exact: selectedDevice } } : true,
+        video: deviceId ? { deviceId: { exact: deviceId } } : true,
         audio: true
       });
       streamRef.current = s;
+      activeDeviceRef.current = deviceId || s.getVideoTracks()[0]?.getSettings?.().deviceId || '';
       if (videoRef.current) videoRef.current.srcObject = s;
       setIsCameraOn(true);
 
@@ -52,20 +69,20 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
         const videoDevs = devs.filter(d => d.kind === 'videoinput');
         setDevices(videoDevs);
         if (videoDevs.length > 0 && !selectedDevice) {
-          setSelectedDevice(videoDevs[0].deviceId);
+          setSelectedDevice(activeDeviceRef.current || videoDevs[0].deviceId);
         }
       }
     } catch (e) {
       console.error('Camera access denied or failed', e);
-      alert('Could not start camera. Please check permissions.');
+      toast.error('Could not start camera. Please check permissions.');
     }
   };
 
   // When device changes while camera is on, restart it
   useEffect(() => {
-    if (isCameraOn && selectedDevice) {
+    if (isCameraOn && selectedDevice && selectedDevice !== activeDeviceRef.current) {
       stopCamera();
-      startCamera();
+      startCamera(selectedDevice);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDevice]);
@@ -73,19 +90,29 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
   const startRecording = () => {
     if (!streamRef.current) return;
     chunksRef.current = [];
-    const mr = new MediaRecorder(streamRef.current, { mimeType: 'video/webm' });
-    
+    const format = pickVideoFormat();
+    let mr;
+    try {
+      mr = format.mimeType ? new MediaRecorder(streamRef.current, { mimeType: format.mimeType }) : new MediaRecorder(streamRef.current);
+    } catch (e) {
+      console.error(e);
+      toast.error('Video recording is not supported in this browser.');
+      return;
+    }
+
     mr.ondataavailable = e => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
-    
+
     mr.onstop = async () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      const type = mr.mimeType || format.mimeType || 'video/webm';
+      const blob = new Blob(chunksRef.current, { type });
+      const fileName = `Recording_${Date.now()}.${format.ext}`;
       try {
         if (window.showSaveFilePicker) {
           const handle = await window.showSaveFilePicker({
-            suggestedName: `Recording_${Date.now()}.webm`,
-            types: [{ description: 'WebM Video', accept: { 'video/webm': ['.webm'] } }]
+            suggestedName: fileName,
+            types: [{ description: 'Video', accept: { [type.split(';')[0]]: [`.${format.ext}`] } }]
           });
           const writable = await handle.createWritable();
           await writable.write(blob);
@@ -94,17 +121,21 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `Recording_${Date.now()}.webm`;
+          a.download = fileName;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
+        toast.success('Recording saved!');
       } catch (err) {
-        console.error(err);
+        if (err?.name !== 'AbortError') {
+          console.error(err);
+          toast.error('Could not save the recording.');
+        }
       }
     };
-    
+
     mr.start();
     mediaRecorderRef.current = mr;
     setIsRecording(true);
@@ -126,10 +157,10 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
           <button className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white p-4 rounded-2xl font-bold hover:bg-indigo-700 transition-colors">
             <Camera size={24} /> Open Camera & Record
           </button>
-          <input 
-            type="file" 
-            accept="video/*" 
-            capture="environment" 
+          <input
+            type="file"
+            accept="video/*"
+            capture="environment"
             className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
             onChange={(e) => {
               if (e.target.files.length > 0) updateWorkspace({ saveFolder: 'Saved to Mobile Camera Roll' });
@@ -145,7 +176,7 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <label className="block font-bold text-gray-700 dark:text-gray-300">Camera Source</label>
-          <select 
+          <select
             className="w-full px-5 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg disabled:opacity-50"
             value={selectedDevice}
             onChange={e => setSelectedDevice(e.target.value)}
@@ -161,7 +192,7 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
           <label className="block font-bold text-gray-700 dark:text-gray-300">Action</label>
           <div className="flex gap-2">
             {!isCameraOn ? (
-              <button onClick={startCamera} className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white p-4 rounded-2xl font-bold hover:bg-indigo-700 transition-colors">
+              <button onClick={() => startCamera()} className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white p-4 rounded-2xl font-bold hover:bg-indigo-700 transition-colors">
                 <Play size={20} /> Start Camera
               </button>
             ) : (
@@ -169,13 +200,13 @@ export default function VideoRecorder({ workspace, updateWorkspace }) {
                 <CameraOff size={20} /> Stop Camera
               </button>
             )}
-            
+
             {isCameraOn && !isRecording && (
               <button onClick={startRecording} className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white p-4 rounded-2xl font-bold hover:bg-red-700 transition-colors">
                 <Video size={20} /> Record
               </button>
             )}
-            
+
             {isRecording && (
               <button onClick={stopRecording} className="flex-1 flex items-center justify-center gap-2 bg-gray-900 text-white p-4 rounded-2xl font-bold hover:bg-black transition-colors animate-pulse">
                 <StopCircle size={20} /> Stop & Save

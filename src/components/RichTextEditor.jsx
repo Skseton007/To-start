@@ -1,28 +1,34 @@
 import React, { useRef, useEffect } from 'react';
-import { 
-  Bold, Italic, Underline, Strikethrough, 
-  Heading1, Heading2, Heading3, 
-  List, ListOrdered, CheckSquare, 
+import {
+  Bold, Italic, Underline, Strikethrough,
+  Heading1, Heading2, Heading3,
+  List, ListOrdered, CheckSquare,
   Quote, Link as LinkIcon, Highlighter,
   AlignLeft, AlignCenter, AlignRight
 } from 'lucide-react';
 
 export default function RichTextEditor({ value, onChange, placeholder }) {
   const editorRef = useRef(null);
-  const isInternalChange = useRef(false);
+  const lastEmitted = useRef(value || '');
 
+  // Load outside changes into the editor, but never while the user is typing in it
+  // (that would reset the cursor). The parent remounts this component per note (key),
+  // so switching notes always starts from the right content.
   useEffect(() => {
-    if (editorRef.current && value !== editorRef.current.innerHTML && !isInternalChange.current) {
-      editorRef.current.innerHTML = value || '';
+    const el = editorRef.current;
+    if (!el) return;
+    const next = value || '';
+    if (next !== el.innerHTML && document.activeElement !== el) {
+      el.innerHTML = next;
     }
-    isInternalChange.current = false;
+    lastEmitted.current = next;
   }, [value]);
 
   const handleInput = () => {
-    if (editorRef.current) {
-      isInternalChange.current = true;
-      onChange(editorRef.current.innerHTML);
-    }
+    const el = editorRef.current;
+    if (!el || el.innerHTML === lastEmitted.current) return;
+    lastEmitted.current = el.innerHTML;
+    onChange(el.innerHTML);
   };
 
   const execCommand = (command, value = null) => {
@@ -46,7 +52,7 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
   const handleChecklist = () => {
     const selection = window.getSelection();
     if (!selection.rangeCount) return;
-    
+
     // Fallback: insert a unicode checkbox and some space
     const checkboxHtml = '&#9744; '; // Unchecked box
     execCommand('insertHTML', checkboxHtml);
@@ -55,7 +61,7 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-dark-card">
       <div className="flex flex-wrap items-center gap-1 p-2 border-b border-gray-200 dark:border-dark-border bg-gray-50 dark:bg-dark-bg/50 shrink-0">
-        
+
         <div className="flex items-center gap-1 border-r border-gray-300 dark:border-gray-700 pr-2 mr-1">
           <ToolbarButton icon={<Bold className="w-4 h-4" />} onClick={() => execCommand('bold')} title="Bold" />
           <ToolbarButton icon={<Italic className="w-4 h-4" />} onClick={() => execCommand('italic')} title="Italic" />
@@ -88,7 +94,7 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
         </div>
       </div>
 
-      <div 
+      <div
         ref={editorRef}
         className="editor-content flex-1 overflow-y-auto p-6 md:p-8 outline-none text-gray-800 dark:text-gray-200"
         contentEditable
@@ -97,7 +103,7 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
         style={{ minHeight: '300px' }}
         data-placeholder={placeholder || 'Start typing...'}
       />
-      
+
       <style dangerouslySetInnerHTML={{__html: `
         .editor-content:empty:before {
           content: attr(data-placeholder);
@@ -110,7 +116,7 @@ export default function RichTextEditor({ value, onChange, placeholder }) {
         .editor-content ul { list-style-type: disc; margin-left: 1.5em; margin-top: 1em; margin-bottom: 1em; }
         .editor-content ol { list-style-type: decimal; margin-left: 1.5em; margin-top: 1em; margin-bottom: 1em; }
         .editor-content blockquote { border-left: 4px solid #e5e7eb; padding-left: 1em; color: #6b7280; margin: 1em 0; }
-        .dark .editor-content blockquote { border-left-color: #374151; color: #9ca3af; }
+        [data-theme=dark] .editor-content blockquote { border-left-color: #374151; color: #9ca3af; }
         .editor-content a { color: #3b82f6; text-decoration: underline; }
       `}} />
     </div>

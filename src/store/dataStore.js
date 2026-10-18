@@ -1,7 +1,12 @@
-﻿// Central Data Store with localStorage persistence
+// Central Data Store with localStorage persistence
 import { v4 as uuidv4 } from 'uuid';
+import { format } from 'date-fns';
 
 const STORAGE_KEY = 'tostart_data';
+
+// Local calendar date as 'yyyy-MM-dd'. Never use toISOString() for this: it is UTC,
+// so between midnight and the UTC offset it returns yesterday's date.
+export const localDate = (d = new Date()) => format(d, 'yyyy-MM-dd');
 
 const getDefaultData = () => ({
   tasks: [],
@@ -29,7 +34,7 @@ const getDefaultData = () => ({
     monthly: 20,
   },
   settings: {
-    theme: 'dark',
+    theme: 'light',
     userName: 'Creator',
     defaultPriority: 'medium',
     defaultCategory: 'personal',
@@ -45,8 +50,8 @@ const getDefaultData = () => ({
 // Generate sample data
 const generateSampleData = () => {
   const now = new Date();
-  const today = now.toISOString().split('T')[0];
-  const yesterday = new Date(now - 86400000).toISOString().split('T')[0];
+  const today = localDate(now);
+  const yesterday = localDate(new Date(now - 86400000));
 
   const tasks = [
     {
@@ -192,7 +197,7 @@ const generateSampleData = () => {
       ],
       status: 'published',
       stages: { idea: true, script: true, recording: true, editing: true, review: true, ready: true, published: true },
-      deadline: new Date(now.getTime() + 86400000 * 2).toISOString().split('T')[0],
+      deadline: localDate(new Date(now.getTime() + 86400000 * 2)),
       notes: 'Great performance on YouTube!',
       createdAt: yesterday + 'T10:00:00.000Z',
     },
@@ -206,7 +211,7 @@ const generateSampleData = () => {
       ],
       status: 'editing',
       stages: { idea: true, script: true, recording: true, editing: false, review: false, ready: false, published: false },
-      deadline: new Date(now.getTime() + 86400000 * 5).toISOString().split('T')[0],
+      deadline: localDate(new Date(now.getTime() + 86400000 * 5)),
       notes: 'Need B-roll footage',
       createdAt: now.toISOString(),
     },
@@ -219,7 +224,7 @@ const generateSampleData = () => {
       ],
       status: 'recording',
       stages: { idea: true, script: true, recording: false, editing: false, review: false, ready: false, published: false },
-      deadline: new Date(now.getTime() + 86400000 * 7).toISOString().split('T')[0],
+      deadline: localDate(new Date(now.getTime() + 86400000 * 7)),
       notes: 'Film over the weekend',
       createdAt: now.toISOString(),
     },
@@ -233,7 +238,7 @@ const generateSampleData = () => {
       ],
       status: 'idea',
       stages: { idea: true, script: false, recording: false, editing: false, review: false, ready: false, published: false },
-      deadline: new Date(now.getTime() + 86400000 * 14).toISOString().split('T')[0],
+      deadline: localDate(new Date(now.getTime() + 86400000 * 14)),
       notes: 'Wait for new monitor to arrive',
       createdAt: now.toISOString(),
     },
@@ -242,60 +247,128 @@ const generateSampleData = () => {
   return { tasks, ideas, notebooks, notes, scripts, videos };
 };
 
+// Bump when stored data needs a one-time migration in migrate()
+const SCHEMA_VERSION = 2;
+
+const emptyResults = () => ({ tasks: [], ideas: [], notebooks: [], notes: [], scripts: [], videos: [] });
+
+const statusFromStages = (stages) => {
+  if (stages.published) return 'published';
+  if (stages.ready) return 'ready';
+  if (stages.review) return 'review';
+  if (stages.editing) return 'editing';
+  if (stages.recording) return 'recording';
+  if (stages.script) return 'script';
+  return 'idea';
+};
+
+// Week starts on Sunday, matching the calendar
+const startOfWeekStr = (d = new Date()) => {
+  const s = new Date(d);
+  s.setDate(s.getDate() - s.getDay());
+  return localDate(s);
+};
+
 class DataStore {
   constructor() {
     this.listeners = new Set();
+    this.errorListeners = new Set();
     this.data = this.load();
+    // Catch the day changing while the app stays open (e.g. left open overnight)
+    if (typeof window !== 'undefined') {
+      setInterval(() => this.rollover(), 60000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') this.rollover();
+      });
+    }
   }
 
   load() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        let parsed = JSON.parse(stored);
-        
-        // --- Daily Routine Reset Logic ---
-        const todayStr = new Date().toISOString().split('T')[0];
-        if (parsed.lastLoginDate && parsed.lastLoginDate !== todayStr) {
-          // It's a new day! Reset all tasks to be incomplete and move them to today
-          if (parsed.tasks && Array.isArray(parsed.tasks)) {
-            parsed.tasks = parsed.tasks.map(task => ({
-              ...task,
-              completed: false,
-              date: todayStr,
-              completedAt: null
-            }));
-          }
-        }
-        parsed.lastLoginDate = todayStr;
-        
-        // Merge with defaults to handle new fields
-        const defaults = getDefaultData();
-        return { ...defaults, ...parsed };
+        const parsed = JSON.parse(stored);
+        const data = this.migrate({ ...getDefaultData(), ...parsed });
+        const rolled = this.applyRollover(data);
+        this.save(rolled);
+        return rolled;
       }
     } catch (e) {
       console.error('Failed to load data:', e);
     }
-    // First time: generate with sample data
-    const defaults = getDefaultData();
-    const sampleData = generateSampleData();
-    const data = { ...defaults, ...sampleData };
-    data.lastLoginDate = new Date().toISOString().split('T')[0];
+    // First time: start with sample data so the app isn't empty
+    const data = this.buildSampleData();
     this.save(data);
     return data;
+  }
+
+  migrate(data) {
+    if ((data.schemaVersion || 1) >= SCHEMA_VERSION) return data;
+    const today = localDate();
+    return {
+      ...data,
+      // v1 reset every task each day, so tasks already in use (today or earlier) were
+      // effectively daily routines. Future-dated tasks were scheduled, not routines.
+      tasks: data.tasks.map(t => ({ recurring: !t.date || t.date <= today, ...t })),
+      // v1 stored 'dark' but never applied it; keep the light look users actually saw
+      settings: { ...data.settings, theme: 'light' },
+      completionLog: data.completionLog || [],
+      schemaVersion: SCHEMA_VERSION,
+    };
+  }
+
+  // Daily routine reset: only recurring tasks are reset and moved to today.
+  // Their completion is logged first so history and stats keep it.
+  applyRollover(data) {
+    const today = localDate();
+    if (data.lastLoginDate === today) return data;
+
+    const log = [...(data.completionLog || [])];
+    const tasks = data.tasks.map(task => {
+      // Leave one-off tasks alone, and never pull a routine scheduled for later into today
+      if (!task.recurring || (task.date && task.date >= today)) return task;
+      if (task.completed) {
+        log.push({
+          id: uuidv4(), taskId: task.id, title: task.title,
+          date: task.completedAt ? localDate(new Date(task.completedAt)) : task.date,
+        });
+      }
+      return { ...task, completed: false, completedAt: null, date: today };
+    });
+
+    return { ...data, tasks, completionLog: log, lastLoginDate: today };
+  }
+
+  rollover() {
+    const next = this.applyRollover(this.data);
+    if (next !== this.data) {
+      this.data = next;
+      this.notify();
+    }
   }
 
   save(data) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data || this.data));
+      return true;
     } catch (e) {
       console.error('Failed to save data:', e);
+      const message = e?.name === 'QuotaExceededError'
+        ? 'Storage is full — your last change was NOT saved. Remove some images or old items.'
+        : 'Could not save your data. Your last change was NOT saved.';
+      this.errorListeners.forEach(l => l(message));
+      return false;
     }
   }
 
   subscribe(listener) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  subscribeErrors(listener) {
+    this.errorListeners.add(listener);
+    return () => this.errorListeners.delete(listener);
   }
 
   notify() {
@@ -307,21 +380,31 @@ class DataStore {
     return this.data;
   }
 
+  // Replace one top-level collection immutably so React sees a new reference
+  set(key, value) {
+    this.data = { ...this.data, [key]: value };
+  }
+
+  updateIn(key, id, updater) {
+    let found = null;
+    const list = this.data[key].map(item => {
+      if (item.id !== id) return item;
+      found = updater(item);
+      return found;
+    });
+    if (found) this.set(key, list);
+    return found;
+  }
+
   // Update streak
   updateStreak() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDate();
     const streak = this.data.streak;
     if (streak.lastActiveDate === today) return;
-    
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    if (streak.lastActiveDate === yesterday) {
-      streak.current += 1;
-    } else if (streak.lastActiveDate !== today) {
-      streak.current = 1;
-    }
-    streak.lastActiveDate = today;
-    if (streak.current > streak.best) streak.best = streak.current;
-    this.notify();
+
+    const yesterday = localDate(new Date(Date.now() - 86400000));
+    const current = streak.lastActiveDate === yesterday ? streak.current + 1 : 1;
+    this.set('streak', { current, lastActiveDate: today, best: Math.max(streak.best, current) });
   }
 
   // ============ TASKS ============
@@ -331,41 +414,45 @@ class DataStore {
       title: task.title || '',
       completed: false,
       priority: task.priority || 'medium',
-      category: task.category || 'personal',
-      date: task.date || new Date().toISOString().split('T')[0],
+      category: task.category || '',
+      date: task.date || localDate(),
       time: task.time || '',
       notes: task.notes || '',
+      recurring: !!task.recurring,
       reminder: task.reminder || null,
       createdAt: new Date().toISOString(),
       completedAt: null,
     };
-    this.data.tasks.unshift(newTask);
+    this.set('tasks', [newTask, ...this.data.tasks]);
     this.updateStreak();
     this.notify();
     return newTask;
   }
 
   updateTask(id, updates) {
-    const idx = this.data.tasks.findIndex(t => t.id === id);
-    if (idx !== -1) {
-      this.data.tasks[idx] = { ...this.data.tasks[idx], ...updates };
-      this.notify();
-    }
+    if (this.updateIn('tasks', id, t => ({ ...t, ...updates }))) this.notify();
   }
 
   toggleTask(id) {
-    const idx = this.data.tasks.findIndex(t => t.id === id);
-    if (idx !== -1) {
-      const task = this.data.tasks[idx];
-      task.completed = !task.completed;
-      task.completedAt = task.completed ? new Date().toISOString() : null;
-      this.updateStreak();
+    const task = this.updateIn('tasks', id, t => ({
+      ...t,
+      completed: !t.completed,
+      completedAt: !t.completed ? new Date().toISOString() : null,
+    }));
+    if (task) {
+      if (task.completed) this.updateStreak();
       this.notify();
     }
   }
 
   deleteTask(id) {
-    this.data.tasks = this.data.tasks.filter(t => t.id !== id);
+    this.set('tasks', this.data.tasks.filter(t => t.id !== id));
+    this.notify();
+  }
+
+  deleteTasks(ids) {
+    const remove = new Set(ids);
+    this.set('tasks', this.data.tasks.filter(t => !remove.has(t.id)));
     this.notify();
   }
 
@@ -373,15 +460,28 @@ class DataStore {
     const task = this.data.tasks.find(t => t.id === id);
     if (task) {
       const newTask = { ...task, id: uuidv4(), completed: false, completedAt: null, createdAt: new Date().toISOString() };
-      this.data.tasks.unshift(newTask);
+      this.set('tasks', [newTask, ...this.data.tasks]);
       this.notify();
       return newTask;
     }
   }
 
   getTodayTasks() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDate();
     return this.data.tasks.filter(t => t.date === today);
+  }
+
+  // Number of tasks completed on each local date between start and end (inclusive, 'yyyy-MM-dd')
+  getCompletionsByDate(start, end) {
+    const counts = {};
+    const add = (date) => {
+      if (date && date >= start && date <= end) counts[date] = (counts[date] || 0) + 1;
+    };
+    this.data.tasks.forEach(t => {
+      if (t.completed) add(t.completedAt ? localDate(new Date(t.completedAt)) : t.date);
+    });
+    (this.data.completionLog || []).forEach(entry => add(entry.date));
+    return counts;
   }
 
   // ============ IDEAS ============
@@ -394,39 +494,35 @@ class DataStore {
       tags: idea.tags || [],
       status: idea.status || 'new',
       notes: idea.notes || '',
+      script: idea.script || '',
+      coverImage: idea.coverImage || '',
       createdAt: new Date().toISOString(),
     };
-    this.data.ideas.unshift(newIdea);
+    this.set('ideas', [newIdea, ...this.data.ideas]);
     this.notify();
     return newIdea;
   }
 
   updateIdea(id, updates) {
-    const idx = this.data.ideas.findIndex(i => i.id === id);
-    if (idx !== -1) {
-      this.data.ideas[idx] = { ...this.data.ideas[idx], ...updates };
-      this.notify();
-    }
+    if (this.updateIn('ideas', id, i => ({ ...i, ...updates }))) this.notify();
   }
 
   deleteIdea(id) {
-    this.data.ideas = this.data.ideas.filter(i => i.id !== id);
+    this.set('ideas', this.data.ideas.filter(i => i.id !== id));
     this.notify();
   }
 
   convertIdeaToVideo(ideaId) {
     const idea = this.data.ideas.find(i => i.id === ideaId);
-    if (idea) {
-      idea.status = 'in-progress';
-      const video = this.addVideo({
-        title: idea.title,
-        ideaId: idea.id,
-        category: idea.category,
-        notes: idea.description,
-      });
-      this.notify();
-      return video;
-    }
+    if (!idea) return null;
+    this.updateIn('ideas', ideaId, i => ({ ...i, status: 'in-progress' }));
+    // addVideo saves and notifies once for both changes
+    return this.addVideo({
+      title: idea.title,
+      ideaId: idea.id,
+      category: idea.category,
+      notes: idea.description,
+    });
   }
 
   // ============ NOTEBOOKS ============
@@ -439,22 +535,18 @@ class DataStore {
       description: notebook.description || '',
       createdAt: new Date().toISOString(),
     };
-    this.data.notebooks.push(newNotebook);
+    this.set('notebooks', [...this.data.notebooks, newNotebook]);
     this.notify();
     return newNotebook;
   }
 
   updateNotebook(id, updates) {
-    const idx = this.data.notebooks.findIndex(n => n.id === id);
-    if (idx !== -1) {
-      this.data.notebooks[idx] = { ...this.data.notebooks[idx], ...updates };
-      this.notify();
-    }
+    if (this.updateIn('notebooks', id, n => ({ ...n, ...updates, updatedAt: new Date().toISOString() }))) this.notify();
   }
 
   deleteNotebook(id) {
-    this.data.notebooks = this.data.notebooks.filter(n => n.id !== id);
-    this.data.notes = this.data.notes.filter(n => n.notebookId !== id);
+    this.set('notebooks', this.data.notebooks.filter(n => n.id !== id));
+    this.set('notes', this.data.notes.filter(n => n.notebookId !== id));
     this.notify();
   }
 
@@ -464,34 +556,32 @@ class DataStore {
 
   // ============ NOTES ============
   addNote(note) {
+    const now = new Date().toISOString();
     const newNote = {
       id: uuidv4(),
       notebookId: note.notebookId,
       title: note.title || 'Untitled Note',
       content: note.content || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
-    this.data.notes.unshift(newNote);
+    this.set('notes', [newNote, ...this.data.notes]);
     this.notify();
     return newNote;
   }
 
   updateNote(id, updates) {
-    const idx = this.data.notes.findIndex(n => n.id === id);
-    if (idx !== -1) {
-      this.data.notes[idx] = { ...this.data.notes[idx], ...updates, updatedAt: new Date().toISOString() };
-      this.notify();
-    }
+    if (this.updateIn('notes', id, n => ({ ...n, ...updates, updatedAt: new Date().toISOString() }))) this.notify();
   }
 
   deleteNote(id) {
-    this.data.notes = this.data.notes.filter(n => n.id !== id);
+    this.set('notes', this.data.notes.filter(n => n.id !== id));
     this.notify();
   }
 
   // ============ SCRIPTS ============
   addScript(script) {
+    const now = new Date().toISOString();
     const newScript = {
       id: uuidv4(),
       title: script.title || 'Untitled Script',
@@ -502,24 +592,20 @@ class DataStore {
       platform: script.platform || 'youtube',
       status: script.status || 'draft',
       ideaId: script.ideaId || null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
-    this.data.scripts.unshift(newScript);
+    this.set('scripts', [newScript, ...this.data.scripts]);
     this.notify();
     return newScript;
   }
 
   updateScript(id, updates) {
-    const idx = this.data.scripts.findIndex(s => s.id === id);
-    if (idx !== -1) {
-      this.data.scripts[idx] = { ...this.data.scripts[idx], ...updates, updatedAt: new Date().toISOString() };
-      this.notify();
-    }
+    if (this.updateIn('scripts', id, s => ({ ...s, ...updates, updatedAt: new Date().toISOString() }))) this.notify();
   }
 
   deleteScript(id) {
-    this.data.scripts = this.data.scripts.filter(s => s.id !== id);
+    this.set('scripts', this.data.scripts.filter(s => s.id !== id));
     this.notify();
   }
 
@@ -530,7 +616,7 @@ class DataStore {
       title: video.title || 'Untitled Video',
       ideaId: video.ideaId || null,
       scriptId: video.scriptId || null,
-      contentType: video.contentType || 'video',
+      contentType: video.contentType || 'Long Form',
       category: video.category || 'content',
       platforms: video.platforms || [
         { platformId: 'youtube', uploaded: false, published: false },
@@ -540,51 +626,38 @@ class DataStore {
       stages: { idea: true, script: false, recording: false, editing: false, review: false, ready: false, published: false },
       deadline: video.deadline || null,
       notes: video.notes || '',
+      publishedAt: null,
       createdAt: new Date().toISOString(),
     };
-    this.data.videos.unshift(newVideo);
+    this.set('videos', [newVideo, ...this.data.videos]);
     this.notify();
     return newVideo;
   }
 
   updateVideo(id, updates) {
-    const idx = this.data.videos.findIndex(v => v.id === id);
-    if (idx !== -1) {
-      this.data.videos[idx] = { ...this.data.videos[idx], ...updates };
-      this.notify();
-    }
+    if (this.updateIn('videos', id, v => ({ ...v, ...updates }))) this.notify();
   }
 
   updateVideoStage(id, stage, value) {
-    const idx = this.data.videos.findIndex(v => v.id === id);
-    if (idx !== -1) {
-      this.data.videos[idx].stages[stage] = value;
-      // Auto-update status based on stages
-      const stages = this.data.videos[idx].stages;
-      if (stages.published) this.data.videos[idx].status = 'published';
-      else if (stages.ready) this.data.videos[idx].status = 'ready';
-      else if (stages.review) this.data.videos[idx].status = 'review';
-      else if (stages.editing) this.data.videos[idx].status = 'editing';
-      else if (stages.recording) this.data.videos[idx].status = 'recording';
-      else if (stages.script) this.data.videos[idx].status = 'script';
-      else this.data.videos[idx].status = 'idea';
-      this.notify();
-    }
+    const updated = this.updateIn('videos', id, v => {
+      const stages = { ...v.stages, [stage]: value };
+      let publishedAt = v.publishedAt || null;
+      if (stage === 'published') publishedAt = value ? new Date().toISOString() : null;
+      return { ...v, stages, status: statusFromStages(stages), publishedAt };
+    });
+    if (updated) this.notify();
   }
 
   updateVideoPlatform(videoId, platformId, field, value) {
-    const idx = this.data.videos.findIndex(v => v.id === videoId);
-    if (idx !== -1) {
-      const pIdx = this.data.videos[idx].platforms.findIndex(p => p.platformId === platformId);
-      if (pIdx !== -1) {
-        this.data.videos[idx].platforms[pIdx][field] = value;
-        this.notify();
-      }
-    }
+    const updated = this.updateIn('videos', videoId, v => ({
+      ...v,
+      platforms: v.platforms.map(p => (p.platformId === platformId ? { ...p, [field]: value } : p)),
+    }));
+    if (updated) this.notify();
   }
 
   deleteVideo(id) {
-    this.data.videos = this.data.videos.filter(v => v.id !== id);
+    this.set('videos', this.data.videos.filter(v => v.id !== id));
     this.notify();
   }
 
@@ -598,7 +671,7 @@ class DataStore {
 
   // ============ CATEGORIES ============
   deleteCategory(id) {
-    this.data.categories = this.data.categories.filter(c => c.id !== id);
+    this.set('categories', this.data.categories.filter(c => c.id !== id));
     this.notify();
   }
 
@@ -608,19 +681,19 @@ class DataStore {
       name: category.name,
       color: category.color || '#6b7280',
     };
-    this.data.categories.push(newCat);
+    this.set('categories', [...this.data.categories, newCat]);
     this.notify();
     return newCat;
   }
 
   // ============ SETTINGS ============
   updateSettings(updates) {
-    this.data.settings = { ...this.data.settings, ...updates };
+    this.set('settings', { ...this.data.settings, ...updates });
     this.notify();
   }
 
   updateContentGoals(goals) {
-    this.data.contentGoals = { ...this.data.contentGoals, ...goals };
+    this.set('contentGoals', { ...this.data.contentGoals, ...goals });
     this.notify();
   }
 
@@ -636,87 +709,94 @@ class DataStore {
       dismissed: false,
       createdAt: new Date().toISOString(),
     };
-    this.data.reminders.push(newReminder);
+    this.set('reminders', [...this.data.reminders, newReminder]);
     this.notify();
     return newReminder;
   }
 
   // ============ ANALYTICS ============
-  getStats(period = 'day') {
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    
-    let startDate;
-    if (period === 'day') {
-      startDate = today;
-    } else if (period === 'week') {
-      const d = new Date(now);
-      d.setDate(d.getDate() - d.getDay());
-      startDate = d.toISOString().split('T')[0];
-    } else {
-      startDate = now.toISOString().slice(0, 7) + '-01';
-    }
+  periodStart(period) {
+    if (period === 'day') return localDate();
+    if (period === 'week') return startOfWeekStr();
+    return localDate().slice(0, 7) + '-01';
+  }
 
-    const tasksInPeriod = this.data.tasks.filter(t => t.date >= startDate);
-    const completedTasks = tasksInPeriod.filter(t => t.completed);
-    const ideasInPeriod = this.data.ideas.filter(i => i.createdAt >= startDate);
-    const scriptsInPeriod = this.data.scripts.filter(s => s.createdAt >= startDate);
-    const videosInPeriod = this.data.videos.filter(v => v.createdAt >= startDate);
-    const publishedVideos = videosInPeriod.filter(v => v.status === 'published');
+  getStats(period = 'day') {
+    const startDate = this.periodStart(period);
+    const today = localDate();
+    // createdAt is a UTC timestamp, so compare it by its local date
+    const inPeriod = (iso) => !!iso && localDate(new Date(iso)) >= startDate;
+
+    const tasksInPeriod = this.data.tasks.filter(t => t.date >= startDate && t.date <= today);
+    const completedCounts = this.getCompletionsByDate(startDate, today);
+    const completedTasks = Object.values(completedCounts).reduce((a, b) => a + b, 0);
+    const videosInPeriod = this.data.videos.filter(v => inPeriod(v.createdAt));
 
     return {
       totalTasks: tasksInPeriod.length,
-      completedTasks: completedTasks.length,
-      taskProgress: tasksInPeriod.length ? Math.round((completedTasks.length / tasksInPeriod.length) * 100) : 0,
-      ideasCreated: ideasInPeriod.length,
-      scriptsWritten: scriptsInPeriod.length,
+      completedTasks,
+      taskProgress: tasksInPeriod.length ? Math.min(100, Math.round((tasksInPeriod.filter(t => t.completed).length / tasksInPeriod.length) * 100)) : 0,
+      ideasCreated: this.data.ideas.filter(i => inPeriod(i.createdAt)).length,
+      scriptsWritten: this.data.scripts.filter(s => inPeriod(s.createdAt)).length,
       videosTotal: videosInPeriod.length,
-      videosPublished: publishedVideos.length,
+      videosPublished: this.data.videos.filter(v => v.status === 'published' && inPeriod(v.publishedAt || v.createdAt)).length,
       videosInProgress: videosInPeriod.filter(v => !['published', 'idea'].includes(v.status)).length,
     };
   }
 
   getContentGoalProgress() {
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date();
-    const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-    const monthStart = now.toISOString().slice(0, 7) + '-01';
-
-    const publishedToday = this.data.videos.filter(v => v.status === 'published' && v.createdAt?.startsWith(today)).length;
-    const publishedWeek = this.data.videos.filter(v => v.status === 'published' && v.createdAt >= weekStart.toISOString()).length;
-    const publishedMonth = this.data.videos.filter(v => v.status === 'published' && v.createdAt >= monthStart).length;
+    const publishedSince = (start) => this.data.videos.filter(v =>
+      v.status === 'published' && localDate(new Date(v.publishedAt || v.createdAt)) >= start
+    ).length;
 
     return {
-      daily: { current: publishedToday, goal: this.data.contentGoals.daily },
-      weekly: { current: publishedWeek, goal: this.data.contentGoals.weekly },
-      monthly: { current: publishedMonth, goal: this.data.contentGoals.monthly },
+      daily: { current: publishedSince(this.periodStart('day')), goal: this.data.contentGoals.daily },
+      weekly: { current: publishedSince(this.periodStart('week')), goal: this.data.contentGoals.weekly },
+      monthly: { current: publishedSince(this.periodStart('month')), goal: this.data.contentGoals.monthly },
     };
   }
 
   // ============ SEARCH ============
   search(query) {
-    if (!query || query.length < 2) return { tasks: [], ideas: [], notebooks: [], notes: [], scripts: [], videos: [] };
+    if (!query || query.length < 2) return emptyResults();
     const q = query.toLowerCase();
+    const has = (text) => (text || '').toLowerCase().includes(q);
     return {
-      tasks: this.data.tasks.filter(t => t.title.toLowerCase().includes(q) || t.notes?.toLowerCase().includes(q)),
-      ideas: this.data.ideas.filter(i => i.title.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q)),
-      notebooks: this.data.notebooks.filter(n => n.name.toLowerCase().includes(q)),
-      notes: this.data.notes.filter(n => n.title.toLowerCase().includes(q) || n.content?.toLowerCase().includes(q)),
-      scripts: this.data.scripts.filter(s => s.title.toLowerCase().includes(q) || s.content?.toLowerCase().includes(q)),
-      videos: this.data.videos.filter(v => v.title.toLowerCase().includes(q)),
+      tasks: this.data.tasks.filter(t => has(t.title) || has(t.notes)),
+      ideas: this.data.ideas.filter(i => has(i.title) || has(i.description)),
+      notebooks: this.data.notebooks.filter(n => has(n.name)),
+      notes: this.data.notes.filter(n => has(n.title) || has(n.content)),
+      scripts: this.data.scripts.filter(s => has(s.title) || has(s.content)),
+      videos: this.data.videos.filter(v => has(v.title)),
     };
   }
 
   // ============ RESET ============
-  clearSampleData() {
-    this.data = getDefaultData();
+  buildSampleData() {
+    return {
+      ...getDefaultData(),
+      ...generateSampleData(),
+      settings: { ...getDefaultData().settings, ...(this.data?.settings || {}) },
+      schemaVersion: SCHEMA_VERSION,
+      lastLoginDate: localDate(),
+    };
+  }
+
+  // Replaces everything with the demo content (keeps settings)
+  loadSampleData() {
+    this.data = this.buildSampleData();
     this.notify();
   }
 
+  // Deletes everything and starts empty (keeps theme and name)
   resetAll() {
-    localStorage.removeItem(STORAGE_KEY);
-    this.data = this.load();
+    const defaults = getDefaultData();
+    this.data = {
+      ...defaults,
+      settings: { ...defaults.settings, theme: this.data.settings.theme, userName: this.data.settings.userName },
+      schemaVersion: SCHEMA_VERSION,
+      lastLoginDate: localDate(),
+    };
     this.notify();
   }
 }
@@ -724,4 +804,3 @@ class DataStore {
 // Singleton
 const store = new DataStore();
 export default store;
-

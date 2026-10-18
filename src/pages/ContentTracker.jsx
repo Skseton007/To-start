@@ -1,11 +1,11 @@
 ﻿import React, { useState } from 'react';
-import { 
-  Play, Plus, Video, Calendar, CheckCircle2, 
+import {
+  Play, Plus, Video, Calendar, CheckCircle2,
   Edit2, Trash2, Camera, Filter, X, Target, Clock,
-  Lightbulb, FileText, Scissors, Eye, ThumbsUp, Rocket, ExternalLink, PenTool, Image as ImageIcon, Music, Layout
+  Lightbulb, FileText, Scissors, Eye, ThumbsUp, Rocket, Image as ImageIcon, Music, Layout
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { useVideos, useSettings, useIdeas, useScripts } from "../store/useStore";
+import { format, parseISO, isValid } from 'date-fns';
+import { useVideos, useSettings, useIdeas, useScripts, useAnalytics } from "../store/useStore";
 import VideoRecorder from '../components/VideoRecorder';
 
 const PIPELINE_STAGES = [
@@ -26,38 +26,56 @@ const EDITING_RESOURCES = [
   { name: 'CapCut Templates', icon: Scissors, url: 'https://capcut.com', color: 'bg-black' }
 ];
 
+// Deadlines are 'yyyy-MM-dd' (or missing). parseISO reads them as local dates;
+// new Date('2024-05-01') is UTC midnight and shows the previous day west of UTC.
+const formatDeadline = (deadline) => {
+  if (!deadline) return 'No deadline';
+  const d = parseISO(deadline);
+  return isValid(d) ? format(d, 'MMMM d, yyyy') : 'No deadline';
+};
+
+const emptyForm = (categories) => ({
+  title: '',
+  type: 'Long Form',
+  categoryId: categories[0]?.id || '',
+  deadline: format(new Date(), 'yyyy-MM-dd'),
+  platforms: ['youtube'],
+  ideaId: '',
+  scriptId: '',
+  notes: ''
+});
+
 export default function ContentTracker() {
   const { videos, addVideo, updateVideo, deleteVideo, updateStage, updatePlatform } = useVideos();
-  const { contentGoals, categories } = useSettings();
+  const { categories } = useSettings();
   const { ideas } = useIdeas();
   const { scripts } = useScripts();
+  const { getContentGoalProgress } = useAnalytics();
+  const weeklyGoal = getContentGoalProgress().weekly;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filter, setFilter] = useState('All');
   const [platformFilter, setPlatformFilter] = useState('All');
   const [editingId, setEditingId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
-  
+
   // Track which nodes are currently animating their 3D pop
   const [animatingNodes, setAnimatingNodes] = useState({});
 
   // Workspace Modal State
   const [activeWorkspace, setActiveWorkspace] = useState(null); // { videoId, stageIndex }
 
-  const [formData, setFormData] = useState({
-    title: '',
-    type: 'Long Form',
-    categoryId: categories[0]?.id || '',
-    deadline: format(new Date(), 'yyyy-MM-dd'),
-    platforms: ['youtube'],
-    ideaId: '',
-    scriptId: '',
-    notes: ''
-  });
+  const [formData, setFormData] = useState(() => emptyForm(categories));
+
+  const openCreate = () => {
+    setEditingId(null);
+    setFormData(emptyForm(categories));
+    setIsModalOpen(true);
+  };
 
   const publishedVideos = videos.filter(v => v.status === 'published').length;
   const inProduction = videos.length - publishedVideos;
-  
+
   const getProgress = (stages) => {
     const total = PIPELINE_STAGES.length;
     let completed = 0;
@@ -74,9 +92,9 @@ export default function ContentTracker() {
     const video = videos.find(v => v.id === activeWorkspace.videoId);
     const stage = PIPELINE_STAGES[activeWorkspace.stageIndex];
     const isCompleted = video.stages[stage.key];
-    
+
     updateStage(video.id, stage.key, !isCompleted);
-    
+
     if (!isCompleted) {
       // Trigger the 3D pop animation
       const animKey = `${video.id}-${stage.key}`;
@@ -85,7 +103,7 @@ export default function ContentTracker() {
         setAnimatingNodes(prev => ({ ...prev, [animKey]: false }));
       }, 500); // matches the 0.5s CSS animation
     }
-    
+
     // Auto-close workspace after marking complete
     setActiveWorkspace(null);
   };
@@ -119,7 +137,12 @@ export default function ContentTracker() {
     };
 
     if (editingId) {
-      updateVideo(editingId, payload);
+      // Keep upload/publish status for platforms that stay selected
+      const existing = videos.find(v => v.id === editingId)?.platforms || [];
+      const platforms = formData.platforms.map(p =>
+        existing.find(e => e.platformId === p) || { platformId: p, uploaded: false, published: false }
+      );
+      updateVideo(editingId, { ...payload, platforms });
     } else {
       const initialPlatforms = formData.platforms.map(p => ({ platformId: p, uploaded: false, published: false }));
       addVideo({ ...payload, platforms: initialPlatforms });
@@ -152,13 +175,13 @@ export default function ContentTracker() {
   // --- RENDER WORKSPACE MODAL CONTENT ---
   const renderWorkspaceContent = (video, stage) => {
     const workspace = video.workspace || {};
-    
+
     switch (stage.key) {
       case 'idea':
         return (
           <div className="space-y-4">
             <label className="block font-bold text-gray-700 dark:text-gray-300">Brainstorming Notepad</label>
-            <textarea 
+            <textarea
               className="w-full h-64 p-6 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-none focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-medium text-lg leading-relaxed shadow-inner"
               placeholder="Dump all your ideas, references, and thoughts here..."
               value={video.notes || ''}
@@ -171,7 +194,7 @@ export default function ContentTracker() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <label className="flex items-center gap-2 font-bold text-red-600"><Play size={18}/> YouTube Script</label>
-              <textarea 
+              <textarea
                 className="w-full h-72 p-6 rounded-2xl bg-red-50/50 dark:bg-red-900/10 border-2 border-red-100 dark:border-red-900/30 focus:border-red-400 outline-none resize-none font-medium shadow-inner"
                 placeholder="Hook, Intro, Main Points, CTA..."
                 value={workspace.scriptYT || ''}
@@ -180,7 +203,7 @@ export default function ContentTracker() {
             </div>
             <div className="space-y-4">
               <label className="flex items-center gap-2 font-bold text-pink-600"><Camera size={18}/> Instagram/Short Script</label>
-              <textarea 
+              <textarea
                 className="w-full h-72 p-6 rounded-2xl bg-pink-50/50 dark:bg-pink-900/10 border-2 border-pink-100 dark:border-pink-900/30 focus:border-pink-400 outline-none resize-none font-medium shadow-inner"
                 placeholder="Fast hook, quick value, loop..."
                 value={workspace.scriptIG || ''}
@@ -215,10 +238,10 @@ export default function ContentTracker() {
                 {EDITING_RESOURCES.map((res, i) => {
                   const ResIcon = res.icon;
                   return (
-                    <a 
-                      key={i} 
-                      href={res.url} 
-                      target="_blank" 
+                    <a
+                      key={i}
+                      href={res.url}
+                      target="_blank"
                       rel="noreferrer"
                       className={`${res.color} text-white p-4 rounded-2xl flex flex-col justify-center items-center gap-3 hover:-translate-y-2 hover:scale-110 hover:shadow-xl transition-all duration-300 ease-out`}
                     >
@@ -231,7 +254,7 @@ export default function ContentTracker() {
             </div>
             <div>
               <label className="block font-bold text-gray-700 dark:text-gray-300 mb-2">Editor Notes</label>
-              <textarea 
+              <textarea
                 className="w-full h-32 p-4 rounded-xl bg-gray-50 dark:bg-[#1a1a1a] border-none outline-none resize-none font-medium shadow-inner"
                 placeholder="Cuts, effects, timestamps for B-roll..."
                 value={workspace.editingNotes || ''}
@@ -254,7 +277,7 @@ export default function ContentTracker() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-fade-in pb-24">
+    <div className="max-w-[1400px] mx-auto space-y-6 md:space-y-8 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 dark:bg-gray-900/50 p-6 rounded-3xl card-3d">
         <div>
@@ -263,48 +286,45 @@ export default function ContentTracker() {
           </h1>
           <p className="text-gray-500 mt-2 font-medium">Sequential 3D Pipeline & Integrated Workspaces</p>
         </div>
-        <button 
-          onClick={() => {
-            setEditingId(null);
-            setIsModalOpen(true);
-          }}
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-8 py-4 rounded-2xl hover:shadow-[0_10px_20px_rgba(99,102,241,0.4)] transition-all hover:-translate-y-1 font-bold text-lg"
+        <button
+          onClick={openCreate}
+          className="flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-8 py-4 rounded-2xl hover:shadow-[0_10px_20px_rgba(99,102,241,0.4)] transition-all duration-300 hover:-translate-y-1 active:scale-95 font-bold text-lg"
         >
           <Plus size={24} /> New Video
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="card-3d p-6 rounded-3xl bg-white/80 dark:bg-gray-900/80 flex flex-col justify-center border-t-4 border-indigo-500">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="card-3d p-6 rounded-3xl bg-white/80 dark:bg-gray-900/80 flex flex-col justify-center border-t-4 border-t-indigo-500">
           <div className="flex items-center gap-3 text-gray-500 mb-2">
             <Video size={20} className="text-indigo-500" /> <span className="font-bold">Total Videos</span>
           </div>
           <span className="text-4xl font-black text-gray-900 dark:text-white">{videos.length}</span>
         </div>
-        <div className="card-3d p-6 rounded-3xl bg-white/80 dark:bg-gray-900/80 flex flex-col justify-center border-t-4 border-blue-500">
+        <div className="card-3d p-6 rounded-3xl bg-white/80 dark:bg-gray-900/80 flex flex-col justify-center border-t-4 border-t-blue-500">
           <div className="flex items-center gap-3 mb-2">
             <Clock size={20} className="text-blue-500" /> <span className="font-bold text-gray-500">In Production</span>
           </div>
           <span className="text-4xl font-black text-blue-500">{inProduction}</span>
         </div>
-        <div className="card-3d p-6 rounded-3xl bg-white/80 dark:bg-gray-900/80 flex flex-col justify-center border-t-4 border-emerald-500">
+        <div className="card-3d p-6 rounded-3xl bg-white/80 dark:bg-gray-900/80 flex flex-col justify-center border-t-4 border-t-emerald-500">
           <div className="flex items-center gap-3 mb-2">
             <CheckCircle2 size={20} className="text-emerald-500" /> <span className="font-bold text-gray-500">Published</span>
           </div>
           <span className="text-4xl font-black text-emerald-500">{publishedVideos}</span>
         </div>
-        <div className="card-3d p-6 rounded-3xl bg-white/80 dark:bg-gray-900/80 flex flex-col justify-center border-t-4 border-pink-500">
+        <div className="card-3d p-6 rounded-3xl bg-white/80 dark:bg-gray-900/80 flex flex-col justify-center border-t-4 border-t-pink-500">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 text-gray-500 font-bold">
               <Target size={20} className="text-pink-500"/> Weekly Goal
             </div>
-            <span className="text-lg font-black text-pink-500">{publishedVideos} / {contentGoals?.weekly || 3}</span>
+            <span className="text-lg font-black text-pink-500">{weeklyGoal.current} / {weeklyGoal.goal || 0}</span>
           </div>
           <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden shadow-inner">
-            <div 
+            <div
               className="h-full bg-gradient-to-r from-pink-500 to-rose-500 transition-all duration-1000"
-              style={{ width: `${Math.min((publishedVideos / (contentGoals?.weekly || 3)) * 100, 100)}%` }}
+              style={{ width: `${weeklyGoal.goal ? Math.min((weeklyGoal.current / weeklyGoal.goal) * 100, 100) : 0}%` }}
             />
           </div>
         </div>
@@ -314,9 +334,9 @@ export default function ContentTracker() {
       <div className="flex flex-wrap gap-4 items-center bg-white/40 dark:bg-gray-900/40 p-4 rounded-3xl card-3d">
         <div className="relative">
           <Filter size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" />
-          <select 
+          <select
             className="pl-12 pr-10 py-3 rounded-2xl bg-white dark:bg-gray-800 border-none focus:ring-2 focus:ring-indigo-500 outline-none appearance-none font-bold shadow-sm"
-            value={filter} 
+            value={filter}
             onChange={(e) => setFilter(e.target.value)}
           >
             <option value="All">All Stages</option>
@@ -325,9 +345,9 @@ export default function ContentTracker() {
         </div>
         <div className="relative">
           <Play size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500" />
-          <select 
+          <select
             className="pl-12 pr-10 py-3 rounded-2xl bg-white dark:bg-gray-800 border-none focus:ring-2 focus:ring-pink-500 outline-none appearance-none font-bold shadow-sm"
-            value={platformFilter} 
+            value={platformFilter}
             onChange={(e) => setPlatformFilter(e.target.value)}
           >
             <option value="All">All Platforms</option>
@@ -340,29 +360,31 @@ export default function ContentTracker() {
       {/* Content List */}
       <div className="space-y-8">
         {filteredVideos.length === 0 ? (
-          <div className="card-3d rounded-3xl p-20 text-center flex flex-col items-center justify-center bg-white/50 dark:bg-gray-900/50 border-dashed border-2 border-indigo-200 dark:border-indigo-900">
+          <div className="card-3d rounded-3xl p-8 md:p-20 text-center flex flex-col items-center justify-center bg-white/50 dark:bg-gray-900/50 border-dashed border-2 border-indigo-200 dark:border-indigo-900">
             <div className="w-28 h-28 bg-indigo-50 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mb-6 shadow-inner">
               <Video size={48} className="text-indigo-500" />
             </div>
             <h3 className="text-3xl font-black mb-3 text-gray-800 dark:text-gray-100">No videos found</h3>
             <p className="text-gray-500 mb-8 max-w-md text-lg">Your pipeline is empty. Start producing your first piece of content!</p>
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-8 py-4 rounded-2xl hover:shadow-xl transition-all font-bold"
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-8 py-4 rounded-2xl hover:shadow-xl active:scale-95 transition-all font-bold"
             >
               <Plus size={20} /> Create Video
             </button>
           </div>
         ) : (
-          filteredVideos.map(video => {
+          filteredVideos.map((video, idx) => {
             const category = categories.find(c => c.id === video.category);
             const progress = getProgress(video.stages);
-            
+            // Fill the track up to the furthest completed stage's icon
+            const lastDoneIdx = PIPELINE_STAGES.reduce((acc, s, i) => (video.stages[s.key] ? i : acc), 0);
+
             return (
-              <div key={video.id} className="card-3d p-8 rounded-[2rem] bg-white/90 dark:bg-[#121212]/90 hover:shadow-2xl transition-all duration-300 group relative overflow-hidden">
-                
+              <div key={video.id} className="card-3d animate-task-enter p-5 md:p-8 rounded-[2rem] bg-white/90 dark:bg-[#121212]/90 hover:shadow-2xl group relative overflow-hidden" style={{ animationDelay: Math.min(idx, 6) * 70 + 'ms' }}>
+
                 {/* Dynamic Background Gradient based on progress */}
-                <div 
+                <div
                   className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none transition-all duration-1000"
                   style={{ background: `linear-gradient(90deg, #6366f1 0%, transparent ${progress}%)` }}
                 />
@@ -381,22 +403,22 @@ export default function ContentTracker() {
                         {video.contentType}
                       </span>
                     </div>
-                    <div className="flex items-center gap-6 text-sm text-gray-500 font-medium">
+                    <div className="flex flex-wrap items-center gap-3 md:gap-6 text-sm text-gray-500 font-medium">
                       <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg">
                         <Calendar size={16} className="text-gray-400" />
-                        {format(new Date(video.deadline), 'MMMM d, yyyy')}
+                        {formatDeadline(video.deadline)}
                       </div>
                       <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg capitalize">
                         <Target size={16} /> {video.status}
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
-                    <button onClick={() => handleEdit(video)} className="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm hover:shadow-md text-gray-500 hover:text-indigo-500 transition-all border border-gray-100 dark:border-gray-700">
+                    <button aria-label="Edit video" onClick={() => handleEdit(video)} className="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm hover:shadow-md text-gray-500 hover:text-indigo-500 transition-all border border-gray-100 dark:border-gray-700">
                       <Edit2 size={18} />
                     </button>
-                    <button onClick={() => setShowDeleteConfirm(video.id)} className="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm hover:shadow-md text-gray-400 hover:text-red-500 transition-all border border-gray-100 dark:border-gray-700">
+                    <button aria-label="Delete video" onClick={() => setShowDeleteConfirm(video.id)} className="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-sm hover:shadow-md text-gray-400 hover:text-red-500 transition-all border border-gray-100 dark:border-gray-700">
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -405,19 +427,19 @@ export default function ContentTracker() {
                 {/* Pipeline Nodes (The visually rich 3D progress bar) */}
                 <div className="pipeline-track-container mb-10 relative z-10 hidden sm:block">
                   <div className="pipeline-bg-track"></div>
-                  <div className="pipeline-fill-track" style={{ width: `calc(${progress}% - 2rem)` }}></div>
-                  
-                  <div className="flex justify-between relative px-8">
+                  <div className="pipeline-fill-track" style={{ width: `calc(100% * ${lastDoneIdx} / ${PIPELINE_STAGES.length})` }}></div>
+
+                  <div className="grid grid-cols-7 relative">
                     {PIPELINE_STAGES.map((stage, idx) => {
                       const isCompleted = video.stages[stage.key];
                       const isAnimating = animatingNodes[`${video.id}-${stage.key}`];
                       // Locked if not first stage AND previous stage is NOT completed
                       const isLocked = false;
-                      
+
                       const IconComp = stage.Icon;
 
                       return (
-                        <div 
+                        <div
                           key={stage.key}
                           onClick={() => !isLocked && handleNodeClick(video, idx)}
                           className={`flex flex-col items-center gap-3 ${isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer group/stage hover:-translate-y-1 transition-transform'} relative`}
@@ -426,15 +448,15 @@ export default function ContentTracker() {
                           {/* The 3D Node */}
                           <div className={`
                             w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 z-10
-                            ${isCompleted 
-                              ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-[0_8px_15px_rgba(99,102,241,0.4)] scale-110 border-2 border-white/20' 
+                            ${isCompleted
+                              ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-[0_8px_15px_rgba(99,102,241,0.4)] scale-110 border-2 border-white/20'
                               : 'bg-white dark:bg-gray-800 text-gray-400 shadow-md border border-gray-200 dark:border-gray-700'}
                             ${(!isLocked && !isCompleted) ? 'group-hover/stage:shadow-lg group-hover/stage:border-indigo-400 group-hover/stage:text-indigo-500' : ''}
                             ${isAnimating ? 'animate-pop3d' : ''}
                           `}>
                             <IconComp size={20} strokeWidth={isCompleted ? 2.5 : 2} />
                           </div>
-                          
+
                           <span className={`text-xs font-black tracking-wide uppercase transition-colors ${isCompleted ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400'} ${(!isLocked && !isCompleted) ? 'group-hover/stage:text-indigo-500' : ''}`}>
                             {stage.label}
                           </span>
@@ -451,7 +473,7 @@ export default function ContentTracker() {
                       const isLocked = false;
                       const IconComp = stage.Icon;
                       return (
-                         <div 
+                         <div
                           key={stage.key}
                           onClick={() => !isLocked && handleNodeClick(video, idx)}
                           className={`
@@ -481,16 +503,16 @@ export default function ContentTracker() {
 
                   <div className="flex items-center gap-4 w-full md:w-auto">
                     {hasPlatform(video, 'youtube') && (
-                      <button 
+                      <button
                         onClick={() => togglePlatform(video.id, 'youtube', getPlatformStatus(video, 'youtube'))}
                         className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black transition-all border shadow-sm ${getPlatformStatus(video, 'youtube') ? 'bg-red-50 dark:bg-red-900/20 text-red-600 border-red-200 dark:border-red-800' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 hover:border-red-300 hover:text-red-500'}`}
                       >
-                        <Play size={20} className={getPlatformStatus(video, 'youtube') ? 'fill-current' : ''} /> 
+                        <Play size={20} className={getPlatformStatus(video, 'youtube') ? 'fill-current' : ''} />
                         <span className="hidden sm:inline">YouTube</span>
                       </button>
                     )}
                     {hasPlatform(video, 'instagram') && (
-                      <button 
+                      <button
                         onClick={() => togglePlatform(video.id, 'instagram', getPlatformStatus(video, 'instagram'))}
                         className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black transition-all border shadow-sm ${getPlatformStatus(video, 'instagram') ? 'bg-pink-50 dark:bg-pink-900/20 text-pink-600 border-pink-200 dark:border-pink-800' : 'bg-white dark:bg-gray-800 text-gray-400 border-gray-200 dark:border-gray-700 hover:border-pink-300 hover:text-pink-500'}`}
                       >
@@ -516,18 +538,18 @@ export default function ContentTracker() {
         const StageIcon = stage.Icon;
 
         return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md animate-fade-in">
-            <div className="bg-white dark:bg-[#121212] rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col">
-              
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => setActiveWorkspace(null)}>
+            <div onClick={e => e.stopPropagation()} className="bg-white dark:bg-[#121212] rounded-[2rem] w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800 flex flex-col">
+
               {/* Header */}
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-8 flex justify-between items-center text-white shrink-0">
-                <div className="flex items-center gap-4">
+              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-5 md:p-8 flex justify-between items-center gap-4 text-white shrink-0">
+                <div className="flex items-center gap-4 min-w-0">
                   <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
                     <StageIcon size={32} />
                   </div>
                   <div>
-                    <h2 className="text-3xl font-black">{stage.label} Workspace</h2>
-                    <p className="font-medium text-indigo-100">{video.title}</p>
+                    <h2 className="text-2xl md:text-3xl font-black">{stage.label} Workspace</h2>
+                    <p className="font-medium text-indigo-100 truncate">{video.title}</p>
                   </div>
                 </div>
                 <button onClick={() => setActiveWorkspace(null)} className="p-2 rounded-full hover:bg-white/20 transition-colors">
@@ -536,17 +558,17 @@ export default function ContentTracker() {
               </div>
 
               {/* Dynamic Content */}
-              <div className="p-8 overflow-y-auto flex-1 bg-white dark:bg-[#121212]">
+              <div className="p-5 md:p-8 overflow-y-auto flex-1 bg-white dark:bg-[#121212]">
                 {renderWorkspaceContent(video, stage)}
               </div>
 
               {/* Footer / Completion Button */}
-              <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-[#151515] shrink-0">
-                <button 
+              <div className="p-4 md:p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-[#151515] shrink-0">
+                <button
                   onClick={handleToggleComplete}
-                  className={`w-full py-5 rounded-2xl font-black text-xl transition-all hover:-translate-y-1 flex items-center justify-center gap-3 ${isCompleted ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 border-2 border-emerald-500' : 'bg-black dark:bg-white text-white dark:text-black hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] dark:hover:shadow-[0_10px_20px_rgba(255,255,255,0.2)]'}`}
+                  className={`w-full py-4 md:py-5 rounded-2xl font-black text-lg md:text-xl transition-all hover:-translate-y-1 active:scale-[0.98] flex items-center justify-center gap-3 ${isCompleted ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 border-2 border-emerald-500' : 'bg-black dark:bg-white text-white dark:text-black hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] dark:hover:shadow-[0_10px_20px_rgba(255,255,255,0.2)]'}`}
                 >
-                  <CheckCircle2 size={28} className={isCompleted ? 'fill-current text-white' : ''} /> 
+                  <CheckCircle2 size={28} className={isCompleted ? 'fill-current text-white' : ''} />
                   {isCompleted ? `${stage.label} Completed (Click to Re-open)` : `Mark ${stage.label} as Complete`}
                 </button>
               </div>
@@ -557,34 +579,34 @@ export default function ContentTracker() {
 
       {/* CREATE/EDIT MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-[#151515] rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-gray-800">
-            <div className="sticky top-0 bg-white/90 dark:bg-[#151515]/90 backdrop-blur-md flex justify-between items-center p-8 border-b border-gray-100 dark:border-gray-800 z-10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setIsModalOpen(false)}>
+          <div onClick={e => e.stopPropagation()} className="bg-white dark:bg-[#151515] rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-gray-800">
+            <div className="sticky top-0 bg-white/90 dark:bg-[#151515]/90 backdrop-blur-md flex justify-between items-center p-6 md:p-8 border-b border-gray-100 dark:border-gray-800 z-10">
               <h2 className="text-3xl font-black">{editingId ? 'Edit Video' : 'New Video'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="p-3 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                 <X size={24} />
               </button>
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-8">
+
+            <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6 md:space-y-8">
               <div>
                 <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Title *</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg"
-                  value={formData.title} 
-                  onChange={e => setFormData({...formData, title: e.target.value})} 
-                  required 
+                  value={formData.title}
+                  onChange={e => setFormData({...formData, title: e.target.value})}
+                  required
                   placeholder="Awesome video idea..."
                 />
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Format</label>
-                  <select 
+                  <select
                     className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg appearance-none"
-                    value={formData.type} 
+                    value={formData.type}
                     onChange={e => setFormData({...formData, type: e.target.value})}
                   >
                     <option value="Long Form">Long Form</option>
@@ -594,9 +616,9 @@ export default function ContentTracker() {
                 </div>
                 <div>
                   <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Category</label>
-                  <select 
+                  <select
                     className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg appearance-none"
-                    value={formData.categoryId} 
+                    value={formData.categoryId}
                     onChange={e => setFormData({...formData, categoryId: e.target.value})}
                   >
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -606,12 +628,12 @@ export default function ContentTracker() {
 
               <div>
                 <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Deadline</label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg"
-                  value={formData.deadline} 
-                  onChange={e => setFormData({...formData, deadline: e.target.value})} 
-                  required 
+                  value={formData.deadline}
+                  onChange={e => setFormData({...formData, deadline: e.target.value})}
+                  required
                 />
               </div>
 
@@ -619,33 +641,33 @@ export default function ContentTracker() {
                 <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Platforms</label>
                 <div className="flex gap-4">
                   <label className={`flex items-center gap-3 p-5 rounded-2xl cursor-pointer flex-1 transition-all border-2 ${formData.platforms.includes('youtube') ? 'bg-red-50 dark:bg-red-900/20 border-red-500' : 'bg-gray-50 dark:bg-[#1a1a1a] border-transparent hover:border-gray-300 dark:hover:border-gray-600'}`}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       className="hidden"
                       checked={formData.platforms.includes('youtube')}
                       onChange={e => {
-                        const plats = e.target.checked 
-                          ? [...formData.platforms, 'youtube'] 
+                        const plats = e.target.checked
+                          ? [...formData.platforms, 'youtube']
                           : formData.platforms.filter(p => p !== 'youtube');
                         setFormData({...formData, platforms: plats});
                       }}
                     />
-                    <Play size={24} className={formData.platforms.includes('youtube') ? "text-red-500 fill-current" : "text-gray-400"} /> 
+                    <Play size={24} className={formData.platforms.includes('youtube') ? "text-red-500 fill-current" : "text-gray-400"} />
                     <span className={`font-bold text-lg ${formData.platforms.includes('youtube') ? 'text-red-600 dark:text-red-400' : 'text-gray-500'}`}>YouTube</span>
                   </label>
                   <label className={`flex items-center gap-3 p-5 rounded-2xl cursor-pointer flex-1 transition-all border-2 ${formData.platforms.includes('instagram') ? 'bg-pink-50 dark:bg-pink-900/20 border-pink-500' : 'bg-gray-50 dark:bg-[#1a1a1a] border-transparent hover:border-gray-300 dark:hover:border-gray-600'}`}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       className="hidden"
                       checked={formData.platforms.includes('instagram')}
                       onChange={e => {
-                        const plats = e.target.checked 
-                          ? [...formData.platforms, 'instagram'] 
+                        const plats = e.target.checked
+                          ? [...formData.platforms, 'instagram']
                           : formData.platforms.filter(p => p !== 'instagram');
                         setFormData({...formData, platforms: plats});
                       }}
                     />
-                    <Camera size={24} className={formData.platforms.includes('instagram') ? "text-pink-600 fill-current" : "text-gray-400"} /> 
+                    <Camera size={24} className={formData.platforms.includes('instagram') ? "text-pink-600 fill-current" : "text-gray-400"} />
                     <span className={`font-bold text-lg ${formData.platforms.includes('instagram') ? 'text-pink-600 dark:text-pink-400' : 'text-gray-500'}`}>Instagram</span>
                   </label>
                 </div>
@@ -654,9 +676,9 @@ export default function ContentTracker() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Link Idea</label>
-                  <select 
+                  <select
                     className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg appearance-none"
-                    value={formData.ideaId} 
+                    value={formData.ideaId}
                     onChange={e => setFormData({...formData, ideaId: e.target.value})}
                   >
                     <option value="">None</option>
@@ -665,9 +687,9 @@ export default function ContentTracker() {
                 </div>
                 <div>
                   <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Link Script</label>
-                  <select 
+                  <select
                     className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg appearance-none"
-                    value={formData.scriptId} 
+                    value={formData.scriptId}
                     onChange={e => setFormData({...formData, scriptId: e.target.value})}
                   >
                     <option value="">None</option>
@@ -678,10 +700,10 @@ export default function ContentTracker() {
 
               <div>
                 <label className="block text-sm font-black text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Production Notes</label>
-                <textarea 
+                <textarea
                   className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-[#1a1a1a] border-2 border-transparent focus:border-indigo-500 outline-none transition-all font-bold text-lg resize-none"
                   rows="3"
-                  value={formData.notes} 
+                  value={formData.notes}
                   onChange={e => setFormData({...formData, notes: e.target.value})}
                   placeholder="Props needed, locations, ideas..."
                 ></textarea>
@@ -702,15 +724,15 @@ export default function ContentTracker() {
 
       {/* DELETE CONFIRM */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-[#151515] rounded-[2rem] w-full max-w-sm p-8 shadow-2xl text-center border border-gray-200 dark:border-gray-800">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={() => setShowDeleteConfirm(null)}>
+          <div onClick={e => e.stopPropagation()} className="bg-white dark:bg-[#151515] rounded-[2rem] w-full max-w-sm p-8 shadow-2xl text-center border border-gray-200 dark:border-gray-800">
             <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
               <Trash2 size={32} className="text-red-500" />
             </div>
             <h2 className="text-3xl font-black mb-3">Delete Video?</h2>
             <p className="text-gray-500 mb-8 font-medium">This action cannot be undone. Are you sure you want to remove this from your pipeline?</p>
             <div className="flex flex-col gap-3">
-              <button 
+              <button
                 className="w-full py-4 rounded-2xl font-bold bg-red-500 text-white hover:bg-red-600 hover:shadow-[0_10px_20px_rgba(239,68,68,0.3)] transition-all text-lg hover:-translate-y-1"
                 onClick={() => {
                   deleteVideo(showDeleteConfirm);
@@ -719,8 +741,8 @@ export default function ContentTracker() {
               >
                 Yes, delete it
               </button>
-              <button 
-                className="w-full py-4 rounded-2xl font-bold text-gray-500 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all text-lg" 
+              <button
+                className="w-full py-4 rounded-2xl font-bold text-gray-500 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all text-lg"
                 onClick={() => setShowDeleteConfirm(null)}
               >
                 Cancel

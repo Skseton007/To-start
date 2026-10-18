@@ -1,24 +1,23 @@
 import React, { useState, useMemo } from 'react';
-import { useTasks, useSettings } from '../store/useStore';
+import { useTasks } from '../store/useStore';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
-import { Plus, Check, Clock, Edit2, Copy, Trash2, Calendar, Flag, Tag, Filter, Search } from 'lucide-react';
+import { Plus, Check, Clock, Edit2, Copy, Trash2, Calendar, Flag, Tag, Filter, Search, Repeat } from 'lucide-react';
 import { format, isToday, isFuture, parseISO } from 'date-fns';
 
 export default function Tasks() {
-  const { tasks, addTask, updateTask, deleteTask, duplicateTask, categories } = useTasks();
-  const { settings } = useSettings();
+  const { tasks, addTask, updateTask, toggleTask, deleteTask, deleteTasks, duplicateTask, categories } = useTasks();
   const toast = useToast();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-  const [taskForm, setTaskForm] = useState({ title: '', priority: 'medium', category: '', time: '', date: format(new Date(), 'yyyy-MM-dd'), notes: '' });
-  
+  const [taskForm, setTaskForm] = useState({ title: '', priority: 'medium', category: '', time: '', date: format(new Date(), 'yyyy-MM-dd'), notes: '', recurring: false });
+
   const [filterTab, setFilterTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedTasks, setSelectedTasks] = useState([]);
-  
+
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
@@ -47,7 +46,7 @@ export default function Tasks() {
       result = result.filter(t => t.priority === 'high' && !t.completed);
     }
 
-    return result.sort((a, b) => {
+    return [...result].sort((a, b) => {
       // Sort by date then time
       const dateA = a.date || '9999-12-31';
       const dateB = b.date || '9999-12-31';
@@ -75,11 +74,12 @@ export default function Tasks() {
         category: task.category || '',
         time: task.time || '',
         date: task.date || format(new Date(), 'yyyy-MM-dd'),
-        notes: task.notes || ''
+        notes: task.notes || '',
+        recurring: !!task.recurring
       });
     } else {
       setEditingTask(null);
-      setTaskForm({ title: '', priority: 'medium', category: categories?.[0]?.id || '', time: '', date: format(new Date(), 'yyyy-MM-dd'), notes: '' });
+      setTaskForm({ title: '', priority: 'medium', category: categories?.[0]?.id || '', time: '', date: format(new Date(), 'yyyy-MM-dd'), notes: '', recurring: false });
     }
     setIsModalOpen(true);
   };
@@ -87,7 +87,7 @@ export default function Tasks() {
   const handleSaveTask = (e) => {
     e.preventDefault();
     if (!taskForm.title.trim()) return;
-    
+
     if (editingTask) {
       updateTask(editingTask.id, { ...taskForm });
       toast.success('Task updated');
@@ -99,7 +99,7 @@ export default function Tasks() {
   };
 
   const handleToggleComplete = (task) => {
-    updateTask(task.id, { completed: !task.completed });
+    toggleTask(task.id);
     if (!task.completed) toast.success('Task completed!');
   };
 
@@ -114,7 +114,7 @@ export default function Tasks() {
       toast.success('Task deleted');
       setSelectedTasks(prev => prev.filter(id => id !== taskToDelete.id));
     } else if (selectedTasks.length > 0) {
-      selectedTasks.forEach(id => deleteTask(id));
+      deleteTasks(selectedTasks);
       toast.success(`${selectedTasks.length} tasks deleted`);
       setSelectedTasks([]);
     }
@@ -130,7 +130,7 @@ export default function Tasks() {
   const toggleSelectTask = (id) => {
     setSelectedTasks(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
-  
+
   const handleBulkDelete = () => {
     setTaskToDelete(null); // Indicates bulk delete
     setDeleteConfirmOpen(true);
@@ -148,7 +148,7 @@ export default function Tasks() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-page-enter pb-24">
+    <div className="max-w-[1400px] mx-auto space-y-6 md:space-y-8 animate-page-enter">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/50 dark:bg-gray-900/50 p-6 rounded-3xl card-3d">
         <div>
@@ -157,9 +157,9 @@ export default function Tasks() {
           </h1>
           <p className="text-gray-500 mt-2 font-medium">Manage all your tasks and daily routines.</p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()} 
-          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-4 rounded-2xl hover:shadow-[0_10px_20px_rgba(59,130,246,0.4)] transition-all hover:-translate-y-1 font-bold text-lg"
+        <button
+          onClick={() => handleOpenModal()}
+          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-4 rounded-2xl hover:shadow-[0_10px_20px_rgba(59,130,246,0.4)] transition-all duration-300 hover:-translate-y-1 active:scale-95 font-bold text-lg"
         >
           <Plus size={24} /> Add Task
         </button>
@@ -169,7 +169,7 @@ export default function Tasks() {
       <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
         <div className="flex flex-wrap gap-2">
           {['All', 'Today', 'Upcoming', 'Completed', 'High Priority'].map(tab => (
-            <button 
+            <button
               key={tab}
               className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${filterTab === tab ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md scale-105' : 'bg-white dark:bg-[#1a1a1a] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:-translate-y-0.5 border border-transparent dark:border-gray-800'}`}
               onClick={() => setFilterTab(tab)}
@@ -178,13 +178,13 @@ export default function Tasks() {
             </button>
           ))}
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
           <div className="relative flex-1 sm:min-w-[250px]">
             <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input 
-              type="text" 
-              placeholder="Search tasks..." 
+            <input
+              type="text"
+              placeholder="Search tasks..."
               className="w-full pl-11 pr-4 py-3 rounded-xl bg-white dark:bg-[#1a1a1a] border-none focus:ring-2 focus:ring-blue-500 outline-none font-bold text-base shadow-sm"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -192,7 +192,7 @@ export default function Tasks() {
           </div>
           <div className="relative">
             <Filter size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500" />
-            <select 
+            <select
               className="pl-11 pr-10 py-3 rounded-xl bg-white dark:bg-[#1a1a1a] border-none focus:ring-2 focus:ring-blue-500 outline-none appearance-none font-bold text-base shadow-sm"
               value={selectedCategory}
               onChange={e => setSelectedCategory(e.target.value)}
@@ -205,7 +205,7 @@ export default function Tasks() {
       </div>
 
       {selectedTasks.length > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 p-3 rounded-lg mb-4 flex items-center justify-between animate-in slide-in-from-top-2">
+        <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 p-3 rounded-lg mb-4 flex items-center justify-between slide-in-from-top-2">
           <span>{selectedTasks.length} tasks selected</span>
           <button onClick={handleBulkDelete} className="flex items-center gap-2 px-3 py-1 bg-red-100 text-red-600 rounded hover:bg-red-200 dark:bg-red-900/40 dark:text-red-400">
             <Trash2 size={16} /> Delete Selected
@@ -227,7 +227,7 @@ export default function Tasks() {
                 <Calendar size={18} className="text-gray-400" /> {formatGroupDate(dateStr)}
               </h2>
               {groupedTasks[dateStr].map((task, index) => (
-                <div key={task.id} className={`task-item bg-white/90 dark:bg-[#121212]/90 backdrop-blur-md p-5 rounded-[1.5rem] flex flex-wrap sm:flex-nowrap items-start gap-5 group transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border border-gray-100 dark:border-gray-800 cursor-pointer animate-task-enter ${task.completed ? 'opacity-60 grayscale hover:grayscale-0' : 'card-3d'} ${selectedTasks.includes(task.id) ? 'ring-4 ring-blue-500/50 shadow-xl' : ''}`} style={{ animationDelay: `${index * 0.05}s` }}>
+                <div key={task.id} className={`task-item bg-white/90 dark:bg-[#121212]/90 backdrop-blur-md p-5 rounded-[1.5rem] flex flex-wrap sm:flex-nowrap items-start gap-5 group transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 border border-gray-100 dark:border-gray-800 cursor-pointer animate-task-enter ${task.completed ? 'opacity-60 grayscale hover:grayscale-0' : 'card-3d'} ${selectedTasks.includes(task.id) ? 'ring-4 ring-blue-500/50 shadow-xl' : ''}`} style={{ animationDelay: `${index * 0.05}s` }}>
                   <div className="mt-1 flex gap-3 items-center">
                     <input type="checkbox" checked={selectedTasks.includes(task.id)} onChange={() => toggleSelectTask(task.id)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
                     <label className="checkbox-custom flex items-center cursor-pointer">
@@ -237,7 +237,7 @@ export default function Tasks() {
                       </div>
                     </label>
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <h3 className={`font-black text-xl truncate transition-colors ${task.completed ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>{task.title}</h3>
                     <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-500">
@@ -247,6 +247,7 @@ export default function Tasks() {
                           <Flag size={10} /> {task.priority}
                         </span>
                       )}
+                      {task.recurring && <span className="flex items-center gap-1 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300 px-2 py-0.5 rounded-full"><Repeat size={10} /> Daily</span>}
                       {task.category && <span className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full"><Tag size={10} /> {categories?.find(c => c.id === task.category)?.name || task.category}</span>}
                     </div>
                     {task.notes && <p className="text-sm text-gray-500 mt-2 truncate">{task.notes}</p>}
@@ -272,8 +273,8 @@ export default function Tasks() {
 
       {/* Task Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setIsModalOpen(false)}>
+          <div className="bg-white dark:bg-dark-card border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-4">{editingTask ? 'Edit Task' : 'New Task'}</h2>
             <form onSubmit={handleSaveTask} className="space-y-4">
               <div>
@@ -311,6 +312,10 @@ export default function Tasks() {
                 <label className="block text-sm font-medium mb-1">Notes</label>
                 <textarea className="input w-full p-2 border rounded-lg dark:bg-gray-800 dark:border-gray-700 h-24 resize-none" value={taskForm.notes} onChange={e => setTaskForm({...taskForm, notes: e.target.value})} />
               </div>
+              <label className="flex items-center gap-3 text-sm font-medium cursor-pointer select-none">
+                <input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={!!taskForm.recurring} onChange={e => setTaskForm({...taskForm, recurring: e.target.checked})} />
+                <Repeat size={16} className="text-indigo-500" /> Repeat daily (resets every morning)
+              </label>
               <div className="flex justify-end gap-3 mt-6">
                 <button type="button" className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-800" onClick={() => setIsModalOpen(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary px-4 py-2 bg-black text-white rounded-lg dark:bg-white dark:text-black">{editingTask ? 'Save Changes' : 'Add Task'}</button>
@@ -321,12 +326,12 @@ export default function Tasks() {
       )}
 
       {/* Delete Confirm */}
-      <ConfirmDialog 
-        isOpen={deleteConfirmOpen} 
-        title={taskToDelete ? "Delete Task" : "Delete Selected Tasks"} 
-        message={taskToDelete ? `Are you sure you want to delete "${taskToDelete.title}"?` : `Are you sure you want to delete ${selectedTasks.length} tasks?`} 
-        onConfirm={confirmDelete} 
-        onCancel={() => setDeleteConfirmOpen(false)} 
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title={taskToDelete ? "Delete Task" : "Delete Selected Tasks"}
+        message={taskToDelete ? `Are you sure you want to delete "${taskToDelete.title}"?` : `Are you sure you want to delete ${selectedTasks.length} tasks?`}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirmOpen(false)}
       />
     </div>
   );
