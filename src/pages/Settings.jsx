@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import {
   User, Moon, Sun, Target, Tag,
-  Database, AlertTriangle, Plus, Trash2
+  Database, AlertTriangle, Plus, Trash2, Cloud
 } from 'lucide-react';
+import { SyncPanel } from '../components/SyncButton';
 import { useSettings } from "../store/useStore";
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast } from '../components/Toast';
@@ -66,6 +67,14 @@ export default function Settings() {
               {settings.theme === 'dark' ? <><Moon size={18} /> Dark</> : <><Sun size={18} /> Light</>}
             </button>
           </div>
+        </div>
+
+        {/* Cloud sync */}
+        <div className="settings-section card" style={{ padding: '24px' }}>
+          <h3 className="font-bold" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Cloud size={20} /> Sync Across Devices
+          </h3>
+          <SyncPanel />
         </div>
 
         {/* Content Goals */}
@@ -154,7 +163,7 @@ export default function Settings() {
           </h3>
 
           <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '14px' }}>
-            Your data is stored in this browser only. Resetting deletes all tasks, ideas, notebooks, scripts and videos.
+            Resetting deletes all tasks, ideas, notebooks, scripts and videos (on every synced device when you're signed in).
           </p>
 
           <div style={{ display: 'flex', gap: '15px', flexDirection: 'column' }}>

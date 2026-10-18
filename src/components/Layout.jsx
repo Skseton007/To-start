@@ -4,6 +4,7 @@ import QuickAdd from './QuickAdd';
 import SearchModal from './SearchModal';
 import NotificationToggle from './NotificationToggle';
 import NotificationManager from './NotificationManager';
+import SyncButton from './SyncButton';
 import { useStore, useSettings } from '../store/useStore';
 import { useToast } from './Toast';
 import {
@@ -168,6 +169,7 @@ export default function Layout() {
         </div>
 
         <div className="nav-actions flex items-center gap-1 md:gap-2">
+          <SyncButton />
           <NotificationToggle />
           <button className="btn-dark hidden md:inline-flex" onClick={() => setSearchOpen(true)}>
             <Search size={16} /> Search

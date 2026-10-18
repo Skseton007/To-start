@@ -273,12 +273,24 @@ class DataStore {
   constructor() {
     this.listeners = new Set();
     this.errorListeners = new Set();
+    this.changeListeners = new Set();
     this.data = this.load();
-    // Catch the day changing while the app stays open (e.g. left open overnight)
+    this.prevData = this.data;
     if (typeof window !== 'undefined') {
+      // Catch the day changing while the app stays open (e.g. left open overnight)
       setInterval(() => this.rollover(), 60000);
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') this.rollover();
+      });
+      // Another tab of this app saved: show its changes here too
+      window.addEventListener('storage', (e) => {
+        if (e.key !== STORAGE_KEY || !e.newValue) return;
+        try {
+          this.data = { ...getDefaultData(), ...JSON.parse(e.newValue) };
+          this.notify({ remote: true, skipSave: true });
+        } catch (err) {
+          console.error('Failed to read data from another tab:', err);
+        }
       });
     }
   }
@@ -328,10 +340,10 @@ class DataStore {
       // Leave one-off tasks alone, and never pull a routine scheduled for later into today
       if (!task.recurring || (task.date && task.date >= today)) return task;
       if (task.completed) {
-        log.push({
-          id: uuidv4(), taskId: task.id, title: task.title,
-          date: task.completedAt ? localDate(new Date(task.completedAt)) : task.date,
-        });
+        const date = task.completedAt ? localDate(new Date(task.completedAt)) : task.date;
+        // Same id on every device, so two devices resetting the same day don't double-count
+        const id = `${task.id}_${date}`;
+        if (!log.some(e => e.id === id)) log.push({ id, taskId: task.id, title: task.title, date });
       }
       return { ...task, completed: false, completedAt: null, date: today };
     });
@@ -371,9 +383,25 @@ class DataStore {
     return () => this.errorListeners.delete(listener);
   }
 
-  notify() {
-    this.save();
+  // Change listeners get (previous, next, { remote }) so cloud sync can upload only what changed.
+  // `remote` is true for changes that came from another device/tab and must not be sent back.
+  subscribeChanges(listener) {
+    this.changeListeners.add(listener);
+    return () => this.changeListeners.delete(listener);
+  }
+
+  notify({ remote = false, skipSave = false } = {}) {
+    if (!skipSave) this.save();
+    const prev = this.prevData;
+    this.prevData = this.data;
     this.listeners.forEach(l => l(this.data));
+    this.changeListeners.forEach(l => l(prev, this.data, { remote }));
+  }
+
+  // Apply data that came from the cloud (another device)
+  applyRemote(patch) {
+    this.data = { ...this.data, ...patch };
+    this.notify({ remote: true });
   }
 
   getData() {
@@ -680,6 +708,7 @@ class DataStore {
       id: uuidv4(),
       name: category.name,
       color: category.color || '#6b7280',
+      createdAt: new Date().toISOString(),
     };
     this.set('categories', [...this.data.categories, newCat]);
     this.notify();
